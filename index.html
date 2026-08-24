@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="EvalForge is an offline-first workspace for evaluating AI responses with transparent, weighted quality rubrics."
+    />
+    <meta name="theme-color" content="#0a0d14" />
+    <title>EvalForge — AI Response Evaluation Workspace</title>
+    <link rel="stylesheet" href="./css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to evaluation workspace</a>
+
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Primary navigation">
+        <a class="brand" href="#top" aria-label="EvalForge home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" role="img">
+              <path d="M7 6.5h18v5H12v3h10v4H12v3h13v5H7z" />
+              <path class="brand-spark" d="M21.5 2.5 23 6l3.5 1.5L23 9l-1.5 3.5L20 9l-3.5-1.5L20 6z" />
+            </svg>
+          </span>
+          <span>EvalForge</span>
+        </a>
+
+        <nav class="side-nav">
+          <a class="nav-item active" href="#workspace">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z" /></svg>
+            Evaluate
+          </a>
+          <a class="nav-item" href="#library">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v4H5zm0 6h14v4H5zm0 6h14v4H5z" /></svg>
+            Library
+            <span id="nav-count" class="nav-count">0</span>
+          </a>
+          <button class="nav-item" id="open-methodology" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20m1 15h-2v-6h2zm0-8h-2V7h2z" /></svg>
+            Methodology
+          </button>
+        </nav>
+
+        <div class="sidebar-card">
+          <span class="eyebrow">Local workspace</span>
+          <strong>Your data stays here</strong>
+          <p>Evaluations are stored only in this browser unless you export them.</p>
+          <div class="privacy-status"><span></span> Offline-first</div>
+        </div>
+
+        <div class="sidebar-footer">
+          <div class="avatar" aria-hidden="true">HT</div>
+          <div>
+            <strong>Evaluation workspace</strong>
+            <span>Personal · local</span>
+          </div>
+        </div>
+      </aside>
+
+      <main id="main-content" class="main-content">
+        <header id="top" class="topbar">
+          <button id="mobile-menu" class="icon-button mobile-only" type="button" aria-label="Open navigation" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" /></svg>
+          </button>
+          <div class="topbar-title">
+            <span class="breadcrumb">Workspace / <strong>Response evaluation</strong></span>
+            <span id="save-state" class="save-state"><i></i> Ready</span>
+          </div>
+          <div class="topbar-actions">
+            <button class="button ghost compact" id="export-json" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10l3.5-3.5 1.4 1.4-5.9 5.9-5.9-5.9 1.4-1.4L11 13zM5 19h14v2H5z" /></svg>
+              Export JSON
+            </button>
+            <button class="button primary compact" id="new-evaluation" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" /></svg>
+              New evaluation
+            </button>
+          </div>
+        </header>
+
+        <div class="page-container">
+          <section class="page-intro" aria-labelledby="page-title">
+            <div>
+              <span class="eyebrow accent">AI quality operations</span>
+              <h1 id="page-title">Evaluate with evidence,<br /><span>not intuition.</span></h1>
+              <p>Compare model responses using a transparent rubric across accuracy, relevance, clarity, completeness, and safety.</p>
+            </div>
+            <div class="intro-badge" aria-label="Five dimension weighted rubric">
+              <div class="orbital-mark">
+                <span>5</span>
+                <small>dimensions</small>
+              </div>
+              <p><strong>Weighted rubric</strong><br />Consistent · explainable · exportable</p>
+            </div>
+          </section>
+
+          <section class="metric-grid" aria-label="Evaluation metrics">
+            <article class="metric-card">
+              <div class="metric-icon violet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zm3 3v10h10V7z" /></svg></div>
+              <div><span>Total evaluations</span><strong id="metric-total">0</strong></div>
+              <small id="metric-complete">0 complete</small>
+            </article>
+            <article class="metric-card">
+              <div class="metric-icon cyan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 14 4-4 4 3 6-7 2 2-8 9-4-3-2 2z" /></svg></div>
+              <div><span>Average confidence</span><strong id="metric-confidence">—</strong></div>
+              <small>Across completed reviews</small>
+            </article>
+            <article class="metric-card">
+              <div class="metric-icon green"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.2 16.6-4.3-4.3 1.4-1.4 2.9 2.9 8.5-8.5 1.4 1.4z" /></svg></div>
+              <div><span>Rubric coverage</span><strong id="metric-coverage">—</strong></div>
+              <small>Dimensions scored</small>
+            </article>
+            <article class="metric-card">
+              <div class="metric-icon amber"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 6v6c0 5.2 3.4 8.8 8 10 4.6-1.2 8-4.8 8-10V6zm3.6 8.2-4.2 4.6-2.8-2.6 1.4-1.4 1.4 1.3 2.8-3z" /></svg></div>
+              <div><span>Top outcome</span><strong id="metric-winner">—</strong></div>
+              <small>Most frequent result</small>
+            </article>
+          </section>
+
+          <section id="workspace" class="workspace-card" aria-labelledby="workspace-title">
+            <div class="section-header">
+              <div>
+                <span class="section-kicker">Evaluation canvas</span>
+                <h2 id="workspace-title">Side-by-side response review</h2>
+              </div>
+              <div class="header-tools">
+                <span id="current-status" class="status-pill draft"><i></i> Draft</span>
+                <button class="icon-button" id="clear-form" type="button" aria-label="Clear current evaluation" title="Clear evaluation">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6V4h10v2h3v2h-1l-1 13H6L5 8H4V6zm1 2 .8 11h6.4L16 8zm2 2h2v7h-2zm3 0h2v7h-2z" /></svg>
+                </button>
+              </div>
+            </div>
+
+            <form id="evaluation-form">
+              <div class="prompt-panel">
+                <div class="field-row">
+                  <label class="field grow">
+                    <span>Evaluation title <small>optional</small></span>
+                    <input id="evaluation-title" name="title" type="text" maxlength="80" placeholder="e.g. API error handling comparison" />
+                  </label>
+                  <div class="quick-prompts" aria-label="Prompt templates">
+                    <span>Quick start</span>
+                    <div id="quick-prompt-buttons"></div>
+                  </div>
+                </div>
+                <label class="field">
+                  <span>User prompt <b aria-hidden="true">*</b></span>
+                  <textarea id="prompt" name="prompt" rows="4" placeholder="Paste the original user request or evaluation task…" required></textarea>
+                  <small class="field-hint"><span>Preserve important context and constraints.</span><span id="prompt-count">0 characters</span></small>
+                </label>
+              </div>
+
+              <div class="response-grid">
+                <article class="response-card response-a">
+                  <header>
+                    <div><span class="response-label">A</span><div><strong>Response A</strong><small>Candidate response</small></div></div>
+                    <span id="a-word-count" class="word-count">0 words</span>
+                  </header>
+                  <label class="sr-only" for="response-a">Response A content</label>
+                  <textarea id="response-a" name="responseA" rows="14" placeholder="Paste the first response…" required spellcheck="true"></textarea>
+                </article>
+                <div class="versus" aria-hidden="true"><span>VS</span></div>
+                <article class="response-card response-b">
+                  <header>
+                    <div><span class="response-label">B</span><div><strong>Response B</strong><small>Candidate response</small></div></div>
+                    <span id="b-word-count" class="word-count">0 words</span>
+                  </header>
+                  <label class="sr-only" for="response-b">Response B content</label>
+                  <textarea id="response-b" name="responseB" rows="14" placeholder="Paste the second response…" required spellcheck="true"></textarea>
+                </article>
+              </div>
+
+              <section class="rubric-section" aria-labelledby="rubric-title">
+                <div class="rubric-heading">
+                  <div>
+                    <span class="section-kicker">Weighted quality model</span>
+                    <h3 id="rubric-title">Score each dimension</h3>
+                  </div>
+                  <div class="rating-legend" aria-label="Rating scale"><span>1 Poor</span><i></i><span>3 Adequate</span><i></i><span>5 Excellent</span></div>
+                </div>
+                <div class="rubric-table" role="table" aria-label="Response scoring rubric">
+                  <div class="rubric-row rubric-table-head" role="row">
+                    <div role="columnheader">Evaluation dimension</div>
+                    <div role="columnheader">Response A</div>
+                    <div role="columnheader">Response B</div>
+                  </div>
+                  <div id="rubric-rows"></div>
+                </div>
+              </section>
+
+              <section class="score-summary" aria-labelledby="score-summary-title">
+                <div class="score-block score-a-block">
+                  <div id="score-ring-a" class="score-ring" style="--score: 0"><span id="score-a">0</span><small>/ 100</small></div>
+                  <div><span>Response A score</span><strong id="score-label-a">Not scored</strong><small id="completion-a">0 of 5 dimensions</small></div>
+                </div>
+                <div class="verdict-block">
+                  <span class="section-kicker">Calculated verdict</span>
+                  <div id="winner-mark" class="winner-mark pending">—</div>
+                  <strong id="winner-title">Score both responses</strong>
+                  <p id="winner-detail">Complete the rubric to calculate a transparent winner.</p>
+                  <button id="copy-verdict" class="text-button" type="button">Copy summary</button>
+                </div>
+                <div class="score-block score-b-block">
+                  <div><span>Response B score</span><strong id="score-label-b">Not scored</strong><small id="completion-b">0 of 5 dimensions</small></div>
+                  <div id="score-ring-b" class="score-ring" style="--score: 0"><span id="score-b">0</span><small>/ 100</small></div>
+                </div>
+              </section>
+
+              <section class="review-details">
+                <div class="notes-column">
+                  <label class="field">
+                    <span>Evaluator notes <b aria-hidden="true">*</b></span>
+                    <textarea id="notes" name="notes" rows="7" placeholder="Explain the decisive strengths, errors, risks, and possible improvements…"></textarea>
+                    <small class="field-hint"><span>Specific evidence makes the verdict auditable.</span><span id="notes-count">0 characters</span></small>
+                  </label>
+                </div>
+                <div class="metadata-column">
+                  <label class="field">
+                    <span>Tags <small>comma-separated</small></span>
+                    <input id="tags" name="tags" type="text" placeholder="Python, Safety, Code review" />
+                  </label>
+                  <label class="field confidence-field">
+                    <span>Evaluator confidence <output id="confidence-value" for="confidence">80%</output></span>
+                    <input id="confidence" name="confidence" type="range" min="0" max="100" step="1" value="80" />
+                    <small class="range-labels"><span>Uncertain</span><span>Very certain</span></small>
+                  </label>
+                  <div class="quality-checklist" aria-label="Completion checklist">
+                    <span>Review readiness</span>
+                    <div id="check-prompt"><i></i> Prompt and responses added</div>
+                    <div id="check-rubric"><i></i> Rubric completed</div>
+                    <div id="check-notes"><i></i> Evidence-based notes added</div>
+                  </div>
+                </div>
+              </section>
+
+              <div class="form-actions">
+                <div>
+                  <button id="save-draft" class="button ghost" type="button">Save as draft</button>
+                  <span class="form-helper">Saved locally in your browser</span>
+                </div>
+                <button class="button primary large" type="submit">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.2 16.6-4.3-4.3 1.4-1.4 2.9 2.9 8.5-8.5 1.4 1.4z" /></svg>
+                  Complete evaluation
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <section id="library" class="library-section" aria-labelledby="library-title">
+            <div class="section-header library-header">
+              <div>
+                <span class="section-kicker">Evaluation library</span>
+                <h2 id="library-title">Recent reviews</h2>
+                <p>Search, revisit, and export your local evaluation history.</p>
+              </div>
+              <div class="library-actions">
+                <label class="search-box">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3a7 7 0 1 0 4.9 12l4.1 4.1 1.4-1.4-4.1-4.1A7 7 0 0 0 10 3m0 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10" /></svg>
+                  <span class="sr-only">Search evaluations</span>
+                  <input id="history-search" type="search" placeholder="Search evaluations…" />
+                </label>
+                <select id="history-filter" aria-label="Filter evaluation status">
+                  <option value="all">All statuses</option>
+                  <option value="complete">Complete</option>
+                  <option value="draft">Draft</option>
+                </select>
+                <button class="button ghost compact" id="export-csv" type="button">Export CSV</button>
+              </div>
+            </div>
+            <div id="history-list" class="history-list" aria-live="polite"></div>
+          </section>
+
+          <footer class="site-footer">
+            <div class="brand mini"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M7 6.5h18v5H12v3h10v4H12v3h13v5H7z" /></svg></span><span>EvalForge</span></div>
+            <p>Transparent AI evaluation, built for thoughtful human judgment.</p>
+            <span>Offline-first · No account required</span>
+          </footer>
+        </div>
+      </main>
+    </div>
+
+    <dialog id="methodology-dialog" class="methodology-dialog">
+      <div class="dialog-header">
+        <div><span class="eyebrow accent">How scoring works</span><h2>Evaluation methodology</h2></div>
+        <button id="close-methodology" class="icon-button" type="button" aria-label="Close methodology"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z" /></svg></button>
+      </div>
+      <p>EvalForge converts 1–5 ratings into a 100-point weighted score. Unrated dimensions contribute zero and remain visibly incomplete, preventing partial reviews from appearing final.</p>
+      <div id="methodology-list" class="methodology-list"></div>
+      <div class="formula-card"><span>Weighted score</span><code>Σ (rating ÷ 5 × dimension weight)</code><small>A result within two points is treated as a tie.</small></div>
+      <button id="dialog-done" class="button primary" type="button">Got it</button>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"><span></span></div>
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>

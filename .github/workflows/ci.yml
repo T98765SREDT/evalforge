@@ -18,5 +18,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+      - name: Check JavaScript syntax
+        run: |
+          node --check js/app.js
+          node --check js/data.js
+          node --check js/export.js
+          node --check js/scoring.js
+          node --check js/storage.js
+          node --check server.mjs
       - name: Run tests
         run: npm test

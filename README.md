@@ -9,6 +9,8 @@ EvalForge is an offline-first dashboard for comparing AI responses and code-revi
 
 The application is built with modular vanilla JavaScript, semantic HTML, and responsive CSS. It has no runtime dependencies and does not send evaluation data to a server.
 
+**[Open the live demo](https://t98765sredt.github.io/evalforge/)**
+
 ![EvalForge evaluation dashboard](docs/evalforge-dashboard.png)
 
 ## What it does

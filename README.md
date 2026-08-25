@@ -47,6 +47,14 @@ Then open [http://127.0.0.1:4173](http://127.0.0.1:4173).
 
 The included server uses only Node's built-in `http`, `fs`, and `path` modules.
 
+## Live demo
+
+The repository includes a GitHub Pages deployment workflow. Once Pages is enabled for this repository, the current public build is available at:
+
+`https://t98765sredt.github.io/evalforge/`
+
+The deployed site is static and retains EvalForge's local-first model: it does not send evaluation content to an application server.
+
 ## Run tests
 
 ```bash

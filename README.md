@@ -1,3 +1,4 @@
+
 # EvalForge
 
 [![CI](https://github.com/T98765SREDT/evalforge/actions/workflows/ci.yml/badge.svg)](https://github.com/T98765SREDT/evalforge/actions/workflows/ci.yml)
@@ -9,7 +10,7 @@ EvalForge is an offline-first dashboard for comparing AI responses and code-revi
 
 The application is built with modular vanilla JavaScript, semantic HTML, and responsive CSS. It has no runtime dependencies and does not send evaluation data to a server.
 
-**Open the live demohttps//t98765sredt.github.io/evalforge/**
+**[Open the live demo](https://t98765sredt.github.io/evalforge/)**
 
 ![EvalForge evaluation dashboard](docs/evalforge-dashboard.png)
 

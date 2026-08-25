@@ -1,5 +1,10 @@
 # EvalForge
 
+[![CI](https://github.com/T98765SREDT/evalforge/actions/workflows/ci.yml/badge.svg)](https://github.com/T98765SREDT/evalforge/actions/workflows/ci.yml)
+[![Node.js 18+](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)](package.json)
+[![Runtime](https://img.shields.io/badge/runtime-browser%20native-0f766e)](index.html)
+[![License](https://img.shields.io/badge/license-MIT-0b6e99)](LICENSE)
+
 EvalForge is an offline-first dashboard for comparing AI responses and code-review answers with a transparent, weighted rubric. It turns subjective review into a repeatable workflow: capture the prompt, compare two responses, score five quality dimensions, document evidence, and export the result.
 
 The application is built with modular vanilla JavaScript, semantic HTML, and responsive CSS. It has no runtime dependencies and does not send evaluation data to a server.
@@ -49,6 +54,13 @@ npm test
 ```
 
 The test suite uses Node's built-in test runner and covers weighted scoring, incomplete rubrics, winner/tie decisions, CSV escaping, flattened exports, and versioned JSON output.
+
+## Engineering notes
+
+- The scoring and export modules are pure functions, so the highest-risk logic is testable without a browser.
+- GitHub Actions runs the Node test suite on every pull request and change to `main`.
+- Evaluation data is intentionally local-only; read [SECURITY.md](SECURITY.md) before treating the browser demo as a shared service.
+- [CONTRIBUTING.md](CONTRIBUTING.md) documents the verification and design expectations for changes.
 
 ## Architecture
 

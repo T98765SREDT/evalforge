@@ -1,3 +1,5 @@
+import { CURRENT_SCHEMA_VERSION } from "./model.js";
+
 const CSV_COLUMNS = [
   "id",
   "createdAt",
@@ -15,7 +17,8 @@ const CSV_COLUMNS = [
 ];
 
 export function escapeCsv(value) {
-  const normalized = Array.isArray(value) ? value.join(" | ") : String(value ?? "");
+  const raw = Array.isArray(value) ? value.join(" | ") : String(value ?? "");
+  const normalized = /^[\t\r\n ]*[=+\-@]/.test(raw) ? `'${raw}` : raw;
   return /[",\n\r]/.test(normalized) ? `"${normalized.replaceAll('"', '""')}"` : normalized;
 }
 
@@ -35,7 +38,7 @@ export function evaluationsToCsv(evaluations) {
 export function evaluationsToJson(evaluations) {
   return JSON.stringify(
     {
-      schemaVersion: 1,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
       exportedAt: new Date().toISOString(),
       evaluationCount: evaluations.length,
       evaluations

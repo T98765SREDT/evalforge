@@ -68,6 +68,10 @@
             <span id="save-state" class="save-state"><i></i> Ready</span>
           </div>
           <div class="topbar-actions">
+            <button class="button ghost compact" id="import-json" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21h2V11l3.5 3.5 1.4-1.4L12 7.2l-5.9 5.9 1.4 1.4L11 11zM5 3h14v2H5z" /></svg>
+              Import
+            </button>
             <button class="button ghost compact" id="export-json" type="button">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10l3.5-3.5 1.4 1.4-5.9 5.9-5.9-5.9 1.4-1.4L11 13zM5 19h14v2H5z" /></svg>
               Export JSON
@@ -76,10 +80,16 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" /></svg>
               New evaluation
             </button>
+            <input class="sr-only" id="import-file" type="file" accept="application/json,.json" />
           </div>
         </header>
 
         <div class="page-container">
+          <div id="data-notice" class="data-notice" role="status" aria-live="polite" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20m1 15h-2v-6h2zm0-8h-2V7h2z" /></svg>
+            <span id="data-notice-message"></span>
+            <button id="dismiss-data-notice" type="button" aria-label="Dismiss data notice">Dismiss</button>
+          </div>
           <section class="page-intro" aria-labelledby="page-title">
             <div>
               <span class="eyebrow accent">AI quality operations</span>
@@ -237,7 +247,7 @@
               <div class="form-actions">
                 <div>
                   <button id="save-draft" class="button ghost" type="button">Save as draft</button>
-                  <span class="form-helper">Saved locally in your browser</span>
+                  <span class="form-helper">Stored only after a successful local save</span>
                 </div>
                 <button class="button primary large" type="submit">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.2 16.6-4.3-4.3 1.4-1.4 2.9 2.9 8.5-8.5 1.4 1.4z" /></svg>
@@ -289,6 +299,31 @@
       <div id="methodology-list" class="methodology-list"></div>
       <div class="formula-card"><span>Weighted score</span><code>Σ (rating ÷ 5 × dimension weight)</code><small>A result within two points is treated as a tie.</small></div>
       <button id="dialog-done" class="button primary" type="button">Got it</button>
+    </dialog>
+
+    <dialog id="import-dialog" class="methodology-dialog import-dialog">
+      <div class="dialog-header">
+        <div><span class="eyebrow accent">Restore local data</span><h2>Preview JSON import</h2></div>
+        <button id="close-import" class="icon-button" type="button" aria-label="Close import preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z" /></svg></button>
+      </div>
+      <div class="import-file-card">
+        <span>Selected export</span>
+        <strong id="import-filename">—</strong>
+        <b id="import-summary">Waiting for a valid export</b>
+        <p id="import-detail">No local data changes until you confirm this preview.</p>
+      </div>
+      <label class="field import-mode-field">
+        <span>Restore behavior</span>
+        <select id="import-mode">
+          <option value="merge">Merge with local evaluations</option>
+          <option value="replace">Replace all local evaluations</option>
+        </select>
+        <small class="field-hint">The complete result is saved in one operation. A failed save leaves current data unchanged.</small>
+      </label>
+      <div class="dialog-actions">
+        <button id="cancel-import" class="button ghost" type="button">Cancel</button>
+        <button id="apply-import" class="button primary" type="button" disabled>Restore evaluations</button>
+      </div>
     </dialog>
 
     <div id="toast" class="toast" role="status" aria-live="polite"><span></span></div>

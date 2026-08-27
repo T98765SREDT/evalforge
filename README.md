@@ -19,7 +19,7 @@ The application uses browser-native JavaScript, HTML, and CSS. Evaluation data i
 2. Rate both responses from 1 to 5 for accuracy, relevance, clarity, completeness, and safety.
 3. Review the calculated scores and winner. A difference of two points or less is a tie.
 4. Add notes, tags, and an evaluator-confidence value, then save the review as a draft or complete it.
-5. Search saved reviews or export all records as JSON or CSV.
+5. Search saved reviews, export them as JSON or CSV, or restore a JSON export with a preview before any data changes.
 
 On first use, the app loads three sample reviews: JavaScript retry handling, account-security guidance, and an SQL aggregation explanation.
 
@@ -39,11 +39,16 @@ Each dimension contributes `rating / 5 * weight` points. The application sums th
 
 Ratings are the stored source of truth. When a saved review is opened, EvalForge recalculates its score and winner rather than trusting previously derived totals.
 
+Each saved review also includes the rubric version, tie threshold, dimension weights, and per-dimension score contributions used for that verdict. This keeps the reasoning behind an exported decision inspectable.
+
 ## Storage, export, and privacy
 
 - Reviews are serialized to `localStorage` under the versioned key `evalforge.evaluations.v1`.
-- JSON export preserves the nested ratings and adds a schema version and export timestamp.
-- CSV export flattens the two scores and escapes commas, quotes, and line breaks.
+- A local write must succeed before the interface reports a review as saved. A failed write leaves the form and existing library unchanged and displays a persistent warning.
+- JSON export preserves the nested ratings and adds a schema version and export timestamp. Import previews accepted, repaired, and skipped records before offering merge or replace behavior.
+- Import and delete operations commit the complete candidate collection in one storage write; a failure leaves the prior collection unchanged.
+- CSV export flattens the two scores, escapes delimiters, and neutralizes values that spreadsheet software could interpret as formulas.
+- Stored and imported records are normalized defensively. Malformed entries are skipped or repaired without stopping the application, and the recovery count is shown in the interface.
 - Export only occurs after the user selects an export action.
 - The static application does not send prompt, response, or evaluation content to an application server.
 - `localStorage` is not encrypted or synchronized. Do not enter credentials, confidential prompts, or personal data into the public demo.
@@ -68,13 +73,16 @@ Open [http://127.0.0.1:4173](http://127.0.0.1:4173). The local server uses only 
 npm test
 ```
 
-The project currently has 10 automated tests using Node's built-in test runner. They cover:
+The project currently has 26 automated tests using Node's built-in test runner. They cover:
 
 - rubric validation and weighted-score calculations;
 - partial completion and winner/tie decisions;
+- rubric snapshots and per-dimension score contributions;
 - score formatting;
-- CSV escaping and flattened fields;
-- versioned JSON serialization.
+- CSV escaping, formula-injection protection, and flattened fields;
+- versioned JSON serialization and import validation;
+- merge and replace restore plans;
+- malformed-record migration and storage-failure rollback.
 
 GitHub Actions runs syntax checks and the test suite on Node.js 18, 20, and 22 for pushes and pull requests targeting `main`. No test-coverage percentage is claimed.
 
@@ -94,8 +102,10 @@ EvalForge compares two AI responses with a five-dimension weighted rubric. It su
 
 Implementation highlights:
 
-- Moved scoring and export rules into separate ES modules and covered them with Node tests.
+- Moved scoring, record normalization, import, storage, and export rules into separate ES modules and covered them with Node tests.
 - Recalculates scores from saved ratings when a review is opened instead of relying on saved totals.
+- Restores versioned JSON exports with a validation preview and atomic merge or replace behavior.
+- Keeps failed saves visible and preserves the unsaved form instead of reporting success.
 - Added keyboard-friendly controls, visible focus states, reduced-motion support, and mobile layouts.
 
 Relevant skills: `JavaScript`, `HTML`, `CSS`, `Node.js testing`, `Data validation`, `Accessibility`, `AI evaluation`.

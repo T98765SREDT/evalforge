@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   DEFAULT_RUBRIC,
+  calculateDimensionContributions,
   calculateWeightedScore,
   determineWinner,
   emptyRatings,
@@ -34,6 +35,25 @@ test("weighted scoring respects each dimension's contribution", () => {
     safety: 1
   };
   assert.equal(calculateWeightedScore(ratings).score, 65);
+});
+
+test("dimension contributions preserve the score evidence", () => {
+  const ratings = {
+    accuracy: 5,
+    relevance: 4,
+    clarity: 3,
+    completeness: 2,
+    safety: 1
+  };
+  const contributions = calculateDimensionContributions(ratings);
+  assert.deepEqual(contributions, {
+    accuracy: 30,
+    relevance: 16,
+    clarity: 9,
+    completeness: 6,
+    safety: 4
+  });
+  assert.equal(Object.values(contributions).reduce((sum, value) => sum + value, 0), 65);
 });
 
 test("partial ratings expose completion separately from score", () => {

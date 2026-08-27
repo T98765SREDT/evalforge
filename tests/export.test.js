@@ -24,6 +24,14 @@ test("CSV escaping handles commas, quotes, newlines, and arrays", () => {
   assert.equal(escapeCsv(["A", "B"]), "A | B");
 });
 
+test("CSV escaping neutralizes spreadsheet formulas", () => {
+  assert.equal(escapeCsv("=2+2"), "'=2+2");
+  assert.equal(escapeCsv("  +SUM(A1:A2)"), "'  +SUM(A1:A2)");
+  assert.equal(escapeCsv("@malicious"), "'@malicious");
+  assert.equal(escapeCsv("-10"), "'-10");
+  assert.equal(escapeCsv("safe - value"), "safe - value");
+});
+
 test("CSV export includes a stable header and flattened scores", () => {
   const csv = evaluationsToCsv([evaluation]);
   const lines = csv.split("\n");
@@ -36,7 +44,7 @@ test("CSV export includes a stable header and flattened scores", () => {
 
 test("JSON export is versioned and preserves structured evaluation data", () => {
   const parsed = JSON.parse(evaluationsToJson([evaluation]));
-  assert.equal(parsed.schemaVersion, 1);
+  assert.equal(parsed.schemaVersion, 2);
   assert.equal(parsed.evaluationCount, 1);
   assert.equal(parsed.evaluations[0].scores.A.score, 92);
   assert.ok(!Number.isNaN(Date.parse(parsed.exportedAt)));

@@ -31,6 +31,9 @@ export const DEFAULT_RUBRIC = Object.freeze([
   }
 ]);
 
+export const RUBRIC_VERSION = "1.0.0";
+export const DEFAULT_TIE_THRESHOLD = 2;
+
 export const RATING_LABELS = Object.freeze({
   1: "Poor",
   2: "Weak",
@@ -82,7 +85,19 @@ export function calculateWeightedScore(ratings, rubric = DEFAULT_RUBRIC) {
   };
 }
 
-export function determineWinner(scoreA, scoreB, tieThreshold = 2) {
+export function calculateDimensionContributions(ratings, rubric = DEFAULT_RUBRIC) {
+  const totalWeight = validateRubric(rubric);
+
+  return Object.fromEntries(rubric.map((dimension) => {
+    const rating = Number(ratings?.[dimension.id] || 0);
+    const contribution = rating >= 1 && rating <= 5 && Number.isFinite(rating)
+      ? (rating / 5) * (dimension.weight / totalWeight) * 100
+      : 0;
+    return [dimension.id, Math.round(contribution * 100) / 100];
+  }));
+}
+
+export function determineWinner(scoreA, scoreB, tieThreshold = DEFAULT_TIE_THRESHOLD) {
   if (!Number.isFinite(scoreA) || !Number.isFinite(scoreB)) return "pending";
   if (Math.abs(scoreA - scoreB) <= tieThreshold) return "tie";
   return scoreA > scoreB ? "A" : "B";

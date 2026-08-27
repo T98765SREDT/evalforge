@@ -9,18 +9,18 @@ Prompt + responses + ratings + notes
                   |
                   v
              js/app.js
-          /       |       \
-         v        v        v
- js/scoring.js  UI state  js/storage.js -> localStorage
-         |
-         v
- score + completion + winner
-                  |
-                  v
-             js/export.js -> JSON or CSV download
+       /      |       |       \
+      v       v       v        v
+scoring.js  model.js  UI state  storage.js -> localStorage
+              |                    ^
+              v                    |
+           import.js --------------+
+              |
+              v
+           export.js -> JSON or CSV download
 ```
 
-The form state is held in memory while an evaluation is edited. A save action creates or replaces one evaluation in the locally stored collection. Export functions receive that collection and return text; only the browser download helper interacts with `Blob` and `URL` APIs.
+The form state is held in memory while an evaluation is edited. A save, delete, or restore action first builds a complete candidate collection and writes it to storage. The in-memory library changes only after that write succeeds. Export functions receive the collection and return text; only the browser download helper interacts with `Blob` and `URL` APIs.
 
 ## Modules
 
@@ -30,8 +30,10 @@ The form state is held in memory while an evaluation is edited. A save action cr
 | `css/styles.css` | Layout, component states, responsive rules, focus styling, and reduced-motion behavior |
 | `js/app.js` | Form state, event handling, validation, rendering, history filtering, and downloads |
 | `js/scoring.js` | Rubric definition, weighted scoring, completion, score labels, and winner selection |
-| `js/export.js` | CSV escaping, flattened CSV serialization, versioned JSON serialization, and browser downloads |
-| `js/storage.js` | Defensive reads and writes for the versioned `localStorage` key |
+| `js/model.js` | Evaluation normalization, schema migration, IDs, and auditable rubric snapshots |
+| `js/import.js` | JSON schema validation plus deterministic merge and replace plans |
+| `js/export.js` | Formula-safe CSV serialization, versioned JSON serialization, and browser downloads |
+| `js/storage.js` | Defensive reads and transactional writes for the versioned `localStorage` key |
 | `js/data.js` | First-run sample reviews and prompt templates |
 | `server.mjs` | Small static-file server used for local development |
 | `tests/` | Node tests for scoring and serialization rules |
@@ -41,14 +43,15 @@ The form state is held in memory while an evaluation is edited. A save action cr
 Saved records contain:
 
 ```text
-id, title, createdAt, updatedAt, status
+recordVersion, id, title, createdAt, updatedAt, status
 prompt, responseA, responseB
 ratings.A, ratings.B
 scores.A, scores.B
 winner, confidence, tags, notes
+rubricSnapshot.rubricVersion, tieThreshold, weights, dimensions, contributions
 ```
 
-`ratings` hold the values entered by the evaluator. `normalizeEvaluation()` recalculates the scores and winner when a record is loaded. Missing dimension ratings are filled with zero before recalculation.
+`ratings` hold the values entered by the evaluator. `normalizeEvaluation()` recalculates scores and the winner when a record is loaded. Missing or invalid dimension ratings are filled with zero before recalculation. A saved rubric snapshot records the rules and individual score contributions that produced the result.
 
 ## Scoring rules
 
@@ -61,12 +64,14 @@ winner, confidence, tags, notes
 
 ## Saved data
 
-`js/storage.js` stores the evaluation array under `evalforge.evaluations.v1`. Parsing and write failures are caught so the UI can fall back to sample data or continue without crashing.
+`js/storage.js` stores the evaluation array under `evalforge.evaluations.v1`. Parsing and write failures are caught so the UI can recover without crashing. Loading reports repaired and skipped records. Writes return an explicit result, and `commitEvaluations()` keeps the prior in-memory collection when a browser storage write fails.
+
+JSON exports use schema version 2. The restore workflow accepts supported schema versions, normalizes every record, previews the outcome, and then produces either a merge or replace candidate. Matching IDs in merge mode use the imported record. No collection changes occur until the candidate is saved successfully.
 
 There is no encryption, synchronization, user account, or multi-user isolation. Browser-profile access implies access to the saved evaluations. The public demo must not be used for confidential or regulated data.
 
 ## What the tests cover
 
-The automated tests cover the scoring and export modules. They do not cover browser interactions, visual regression, or security testing.
+The automated tests cover scoring, rubric snapshots, record migration, storage failure behavior, import planning, and export serialization. They do not cover browser interactions, visual regression, or comprehensive security testing.
 
 CI runs JavaScript syntax checks and the Node test suite on supported Node versions. Manual browser review remains necessary for interaction and layout changes.

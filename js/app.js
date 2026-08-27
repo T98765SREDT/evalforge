@@ -3,12 +3,13 @@ import {
   RATING_LABELS,
   calculateWeightedScore,
   determineWinner,
-  emptyRatings,
   scoreTone
 } from "./scoring.js";
 import { downloadTextFile, evaluationsToCsv, evaluationsToJson } from "./export.js";
+import { createImportPlan, parseEvaluationImport } from "./import.js";
+import { createBlankEvaluation, normalizeEvaluation } from "./model.js";
 import { quickPrompts, sampleEvaluations } from "./data.js";
-import { loadEvaluations, saveEvaluations } from "./storage.js";
+import { commitEvaluations, loadEvaluationState } from "./storage.js";
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -24,58 +25,12 @@ const fields = {
   confidence: $("#confidence")
 };
 
-let evaluations = loadEvaluations(sampleEvaluations).map(normalizeEvaluation);
+const initialState = loadEvaluationState(sampleEvaluations);
+let evaluations = initialState.evaluations;
 let current = createBlankEvaluation();
+let pendingImport = null;
+let formIsDirty = false;
 let toastTimer;
-
-function createId() {
-  return globalThis.crypto?.randomUUID?.() || `eval-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function createBlankEvaluation() {
-  return {
-    id: createId(),
-    title: "",
-    createdAt: null,
-    updatedAt: null,
-    status: "draft",
-    prompt: "",
-    responseA: "",
-    responseB: "",
-    ratings: {
-      A: emptyRatings(),
-      B: emptyRatings()
-    },
-    scores: {
-      A: calculateWeightedScore(emptyRatings()),
-      B: calculateWeightedScore(emptyRatings())
-    },
-    winner: "pending",
-    confidence: 80,
-    tags: [],
-    notes: ""
-  };
-}
-
-function normalizeEvaluation(evaluation) {
-  const normalized = {
-    ...createBlankEvaluation(),
-    ...structuredClone(evaluation),
-    ratings: {
-      A: { ...emptyRatings(), ...(evaluation.ratings?.A || {}) },
-      B: { ...emptyRatings(), ...(evaluation.ratings?.B || {}) }
-    },
-    tags: Array.isArray(evaluation.tags) ? evaluation.tags : []
-  };
-  normalized.scores = {
-    A: calculateWeightedScore(normalized.ratings.A),
-    B: calculateWeightedScore(normalized.ratings.B)
-  };
-  normalized.winner = normalized.scores.A.isComplete && normalized.scores.B.isComplete
-    ? determineWinner(normalized.scores.A.score, normalized.scores.B.score)
-    : "pending";
-  return normalized;
-}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -256,7 +211,7 @@ function updateVerdictUi() {
   if (winner === "tie") {
     mark.textContent = "=";
     $("#winner-title").textContent = "Responses are effectively tied";
-    $("#winner-detail").textContent = `${current.scores.A.score} vs ${current.scores.B.score} · within the 2-point tie threshold`;
+    $("#winner-detail").textContent = `${current.scores.A.score} vs ${current.scores.B.score} · within the ${current.rubricSnapshot.tieThreshold}-point tie threshold`;
     return;
   }
 
@@ -285,14 +240,49 @@ function updateReadiness() {
 }
 
 function setDirty() {
+  formIsDirty = true;
   $("#save-state").className = "save-state";
   $("#save-state").innerHTML = "<i></i> Unsaved changes";
   if (current.status === "complete") current.status = "draft";
 }
 
 function setSaved() {
+  formIsDirty = false;
   $("#save-state").className = "save-state saved";
   $("#save-state").innerHTML = "<i></i> Saved locally";
+}
+
+function setReady() {
+  formIsDirty = false;
+  $("#save-state").className = "save-state";
+  $("#save-state").innerHTML = "<i></i> Ready";
+}
+
+function setSaveError() {
+  formIsDirty = true;
+  $("#save-state").className = "save-state error";
+  $("#save-state").innerHTML = "<i></i> Not saved";
+  showDataNotice(
+    "error",
+    "Local save failed. Your changes are still in this form. Free browser storage or export your saved evaluations, then try again."
+  );
+}
+
+function showDataNotice(kind, message) {
+  const notice = $("#data-notice");
+  notice.hidden = false;
+  notice.dataset.kind = kind;
+  notice.className = `data-notice ${kind}`;
+  notice.setAttribute("role", kind === "error" ? "alert" : "status");
+  $("#data-notice-message").textContent = message;
+}
+
+function clearErrorNotice() {
+  const notice = $("#data-notice");
+  if (notice.dataset.kind === "error") {
+    notice.hidden = true;
+    notice.dataset.kind = "";
+  }
 }
 
 function saveCurrent(status) {
@@ -308,17 +298,29 @@ function saveCurrent(status) {
   }
 
   const now = new Date().toISOString();
-  current.title = current.title || titleFromPrompt(current.prompt);
+  const candidate = normalizeEvaluation({
+    ...structuredClone(current),
+    title: current.title || titleFromPrompt(current.prompt),
+    createdAt: current.createdAt || now,
+    updatedAt: now,
+    status
+  });
+  const candidateEvaluations = structuredClone(evaluations);
+  const index = candidateEvaluations.findIndex(({ id }) => id === candidate.id);
+  if (index >= 0) candidateEvaluations[index] = candidate;
+  else candidateEvaluations.unshift(candidate);
+
+  const transaction = commitEvaluations(candidateEvaluations, evaluations);
+  if (!transaction.ok) {
+    setSaveError();
+    showToast("Could not save locally. Your form has not been cleared.");
+    return false;
+  }
+
+  evaluations = transaction.evaluations;
+  current = candidate;
   fields.title.value = current.title;
-  current.createdAt ||= now;
-  current.updatedAt = now;
-  current.status = status;
-
-  const index = evaluations.findIndex(({ id }) => id === current.id);
-  if (index >= 0) evaluations[index] = structuredClone(current);
-  else evaluations.unshift(structuredClone(current));
-
-  saveEvaluations(evaluations);
+  clearErrorNotice();
   setSaved();
   renderCurrent();
   renderMetrics();
@@ -399,10 +401,10 @@ function renderHistory() {
           <span><strong>${escapeHtml(verdictLabel)}</strong><small>${evaluation.confidence}% confidence</small></span>
         </div>
         <div class="history-controls">
-          <button type="button" data-edit="${evaluation.id}" title="Open evaluation" aria-label="Open ${escapeHtml(evaluation.title)}">
+          <button type="button" data-edit="${escapeHtml(evaluation.id)}" title="Open evaluation" aria-label="Open ${escapeHtml(evaluation.title)}">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 15.5 10-10 3.5 3.5-10 10H5zm11.4-11.4 1.5-1.5 3.5 3.5-1.5 1.5zM4 20h16v2H4z" /></svg>
           </button>
-          <button class="delete" type="button" data-delete="${evaluation.id}" title="Delete evaluation" aria-label="Delete ${escapeHtml(evaluation.title)}">
+          <button class="delete" type="button" data-delete="${escapeHtml(evaluation.id)}" title="Delete evaluation" aria-label="Delete ${escapeHtml(evaluation.title)}">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6V4h10v2h3v2h-1l-1 13H6L5 8H4V6zm1 2 .8 11h6.4L16 8z" /></svg>
           </button>
         </div>
@@ -420,8 +422,73 @@ function showToast(message) {
 
 function resetCurrent({ scroll = true } = {}) {
   populateForm(createBlankEvaluation());
-  setSaved();
+  setReady();
   if (scroll) $("#workspace").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function updateImportPreview() {
+  if (!pendingImport) return;
+  const mode = $("#import-mode").value;
+  const plan = createImportPlan(evaluations, pendingImport.evaluations, mode);
+  const report = pendingImport.report;
+  const parts = [`${report.accepted} ready`];
+  if (report.repaired) parts.push(`${report.repaired} repaired`);
+  if (report.skipped) parts.push(`${report.skipped} skipped`);
+  $("#import-summary").textContent = parts.join(" · ");
+  const planDetail = mode === "merge"
+    ? `${plan.added} new and ${plan.updated} matching evaluation${plan.updated === 1 ? "" : "s"} will be restored. Matching IDs use the imported version.`
+    : `${plan.evaluations.length} evaluation${plan.evaluations.length === 1 ? "" : "s"} will replace the ${evaluations.length} currently stored.`;
+  $("#import-detail").textContent = `${planDetail}${formIsDirty ? " Your unsaved form will be cleared after a successful restore." : ""}`;
+}
+
+async function previewImportFile(event) {
+  const [file] = event.target.files;
+  event.target.value = "";
+  if (!file) return;
+
+  pendingImport = null;
+  $("#apply-import").disabled = true;
+  $("#import-filename").textContent = file.name;
+
+  try {
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error("This file is larger than the 5 MB import limit.");
+    }
+    pendingImport = parseEvaluationImport(await file.text());
+    $("#import-mode").value = "merge";
+    $("#apply-import").disabled = false;
+    updateImportPreview();
+  } catch (error) {
+    $("#import-summary").textContent = "Import unavailable";
+    $("#import-detail").textContent = error.message || "EvalForge could not read this file.";
+  }
+
+  $("#import-dialog").showModal();
+}
+
+function applyPendingImport() {
+  if (!pendingImport) return;
+  const plan = createImportPlan(evaluations, pendingImport.evaluations, $("#import-mode").value);
+  const transaction = commitEvaluations(plan.evaluations, evaluations);
+  if (!transaction.ok) {
+    setSaveError();
+    showToast("Import could not be saved. No evaluations were changed.");
+    return;
+  }
+
+  evaluations = transaction.evaluations;
+  resetCurrent({ scroll: false });
+  renderMetrics();
+  renderHistory();
+  $("#import-dialog").close();
+  clearErrorNotice();
+
+  const recovery = pendingImport.report;
+  if (recovery.repaired || recovery.skipped) {
+    showDataNotice("info", `Import finished: ${recovery.accepted} restored, ${recovery.repaired} repaired, and ${recovery.skipped} skipped.`);
+  }
+  showToast(`${evaluations.length} evaluations are now stored locally`);
+  pendingImport = null;
 }
 
 function copyVerdict() {
@@ -497,8 +564,15 @@ function bindEvents() {
     if (deleteButton) {
       const evaluation = evaluations.find(({ id }) => id === deleteButton.dataset.delete);
       if (!evaluation || !confirm(`Delete “${evaluation.title || "Untitled evaluation"}”? This cannot be undone.`)) return;
-      evaluations = evaluations.filter(({ id }) => id !== evaluation.id);
-      saveEvaluations(evaluations);
+      const candidateEvaluations = evaluations.filter(({ id }) => id !== evaluation.id);
+      const transaction = commitEvaluations(candidateEvaluations, evaluations);
+      if (!transaction.ok) {
+        setSaveError();
+        showToast("Could not delete locally. No evaluations were changed.");
+        return;
+      }
+      evaluations = transaction.evaluations;
+      clearErrorNotice();
       if (current.id === evaluation.id) resetCurrent({ scroll: false });
       renderMetrics();
       renderHistory();
@@ -514,6 +588,17 @@ function bindEvents() {
   $("#export-csv").addEventListener("click", () => {
     downloadTextFile("evalforge-evaluations.csv", evaluationsToCsv(evaluations), "text/csv");
     showToast(`Exported ${evaluations.length} evaluations as CSV`);
+  });
+
+  $("#import-json").addEventListener("click", () => $("#import-file").click());
+  $("#import-file").addEventListener("change", previewImportFile);
+  $("#import-mode").addEventListener("change", updateImportPreview);
+  $("#apply-import").addEventListener("click", applyPendingImport);
+  $("#close-import").addEventListener("click", () => $("#import-dialog").close());
+  $("#cancel-import").addEventListener("click", () => $("#import-dialog").close());
+  $("#dismiss-data-notice").addEventListener("click", () => {
+    $("#data-notice").hidden = true;
+    $("#data-notice").dataset.kind = "";
   });
 
   const dialog = $("#methodology-dialog");
@@ -545,7 +630,16 @@ function initialize() {
   populateForm(current);
   renderMetrics();
   renderHistory();
-  setSaved();
+  setReady();
+
+  if (initialState.error) {
+    showDataNotice("error", "Local data could not be read. EvalForge opened with sample evaluations; your browser data was not overwritten.");
+  } else if (initialState.report.source === "storage" && (initialState.report.repaired || initialState.report.skipped)) {
+    showDataNotice(
+      "info",
+      `Local data recovered: ${initialState.report.accepted} loaded, ${initialState.report.repaired} repaired, and ${initialState.report.skipped} skipped.`
+    );
+  }
 }
 
 initialize();

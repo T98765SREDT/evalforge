@@ -23,6 +23,8 @@ jobs:
           node --check js/app.js
           node --check js/data.js
           node --check js/export.js
+          node --check js/import.js
+          node --check js/model.js
           node --check js/scoring.js
           node --check js/storage.js
           node --check server.mjs

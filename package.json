@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Offline-first AI response evaluation and code review dashboard",
+  "description": "Browser-based AI response comparison and evaluation tool",
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test"

@@ -9,7 +9,7 @@ EvalForge is a browser application for comparing two AI responses against the sa
 
 The application uses browser-native JavaScript, HTML, and CSS. Evaluation data is stored in the current browser; there is no application backend.
 
-**[Open the live demo](https://t98765sredt.github.io/evalforge/)** · [Architecture](ARCHITECTURE.md) · [Security notes](SECURITY.md)
+**[Open the live demo](https://t98765sredt.github.io/evalforge/)** · [Architecture](ARCHITECTURE.md) · [Changelog](CHANGELOG.md) · [Security notes](SECURITY.md)
 
 ![EvalForge evaluation dashboard](docs/evalforge-dashboard.png)
 
@@ -21,7 +21,7 @@ The application uses browser-native JavaScript, HTML, and CSS. Evaluation data i
 4. Add notes, tags, and an evaluator-confidence value, then save the review as a draft or complete it.
 5. Search saved reviews or export all records as JSON or CSV.
 
-The first browser session includes three sample reviews: JavaScript retry handling, account-security guidance, and an SQL aggregation explanation.
+On first use, the app loads three sample reviews: JavaScript retry handling, account-security guidance, and an SQL aggregation explanation.
 
 ![EvalForge weighted verdict](docs/evalforge-verdict.png)
 
@@ -48,7 +48,7 @@ Ratings are the stored source of truth. When a saved review is opened, EvalForge
 - The static application does not send prompt, response, or evaluation content to an application server.
 - `localStorage` is not encrypted or synchronized. Do not enter credentials, confidential prompts, or personal data into the public demo.
 
-See [SECURITY.md](SECURITY.md) for the project boundary.
+See [SECURITY.md](SECURITY.md) for data-handling guidance and known limits.
 
 ## Run locally
 
@@ -68,7 +68,7 @@ Open [http://127.0.0.1:4173](http://127.0.0.1:4173). The local server uses only 
 npm test
 ```
 
-The tests use Node's built-in test runner. They cover:
+The project currently has 10 automated tests using Node's built-in test runner. They cover:
 
 - rubric validation and weighted-score calculations;
 - partial completion and winner/tie decisions;
@@ -86,16 +86,16 @@ The site is static. [`.github/workflows/pages.yml`](.github/workflows/pages.yml)
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for module responsibilities, data flow, stored-record shape, and design constraints.
 
-## Portfolio summary
+## Project summary
 
-**EvalForge — Offline-first AI response evaluation dashboard**
+**EvalForge — Browser-based AI response evaluation tool**
 
-Built a responsive browser application that compares two AI responses with a five-dimension weighted rubric. Implemented deterministic scoring, draft and completed-review workflows, local browser persistence, searchable history, and tested JSON/CSV export without runtime dependencies.
+EvalForge compares two AI responses with a five-dimension weighted rubric. It supports draft and completed reviews, saves data in the browser, searches review history, and exports records as JSON or CSV. The application has no runtime package dependencies.
 
 Implementation highlights:
 
-- Kept scoring and export rules in pure ES modules so they can be tested outside the browser.
-- Recalculated derived scores from stored ratings to prevent stale totals from becoming authoritative.
+- Moved scoring and export rules into separate ES modules and covered them with Node tests.
+- Recalculates scores from saved ratings when a review is opened instead of relying on saved totals.
 - Added keyboard-friendly controls, visible focus states, reduced-motion support, and mobile layouts.
 
 Relevant skills: `JavaScript`, `HTML`, `CSS`, `Node.js testing`, `Data validation`, `Accessibility`, `AI evaluation`.

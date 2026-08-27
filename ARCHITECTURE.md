@@ -48,9 +48,9 @@ scores.A, scores.B
 winner, confidence, tags, notes
 ```
 
-`ratings` are authoritative. Scores and winner are derived by `normalizeEvaluation()` when a record is loaded. Missing dimension ratings are filled with zero before recalculation.
+`ratings` hold the values entered by the evaluator. `normalizeEvaluation()` recalculates the scores and winner when a record is loaded. Missing dimension ratings are filled with zero before recalculation.
 
-## Scoring invariants
+## Scoring rules
 
 - Every rubric dimension has a positive weight.
 - Only numeric ratings from 1 through 5 contribute to a score; the UI offers the integer values 1, 2, 3, 4, and 5.
@@ -59,14 +59,14 @@ winner, confidence, tags, notes
 - A score difference of zero, one, or two points produces a tie.
 - A completed review requires a prompt, both responses, every rubric rating, and evaluator notes of at least 20 characters.
 
-## Storage boundary
+## Saved data
 
 `js/storage.js` stores the evaluation array under `evalforge.evaluations.v1`. Parsing and write failures are caught so the UI can fall back to sample data or continue without crashing.
 
 There is no encryption, synchronization, user account, or multi-user isolation. Browser-profile access implies access to the saved evaluations. The public demo must not be used for confidential or regulated data.
 
-## Testing boundary
+## What the tests cover
 
-The automated tests cover the pure scoring and export modules. They do not claim browser end-to-end coverage, visual-regression coverage, security certification, or a production service-level guarantee.
+The automated tests cover the scoring and export modules. They do not cover browser interactions, visual regression, or security testing.
 
 CI runs JavaScript syntax checks and the Node test suite on supported Node versions. Manual browser review remains necessary for interaction and layout changes.

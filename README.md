@@ -1,3 +1,4 @@
+
 # EvalForge
 
 [![CI](https://github.com/T98765SREDT/evalforge/actions/workflows/ci.yml/badge.svg)](https://github.com/T98765SREDT/evalforge/actions/workflows/ci.yml)
@@ -10,6 +11,8 @@ EvalForge is a browser application for comparing two AI responses against the sa
 The application uses browser-native JavaScript, HTML, and CSS. Evaluation data is stored in the current browser; there is no application backend.
 
 **[Open the live demo](https://t98765sredt.github.io/evalforge/)** · [Architecture](ARCHITECTURE.md) · [Changelog](CHANGELOG.md) · [Security notes](SECURITY.md)
+
+**[Open the live demo](https://t98765sredt.github.io/evalforge/)**
 
 ![EvalForge evaluation dashboard](docs/evalforge-dashboard.png)
 

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   CURRENT_SCHEMA_VERSION,
+  createBlankEvaluation,
   normalizeEvaluation,
   normalizeEvaluationCollection
 } from "../js/model.js";
@@ -90,4 +91,21 @@ test("malformed values are constrained to safe field types", () => {
   assert.deepEqual(normalized.tags, ["valid", "second"]);
   assert.equal(normalized.createdAt, null);
   assert.equal(normalized.ratings.A.accuracy, 5);
+});
+
+test("sample records keep their provenance while user records remain exportable", () => {
+  const sample = normalizeEvaluation({ id: "sample", isSample: true, title: "Example", prompt: "Prompt" });
+  const user = normalizeEvaluation({ id: "user", title: "My review", prompt: "Prompt" });
+  assert.equal(sample.isSample, true);
+  assert.equal(user.isSample, false);
+});
+
+test("a selected rubric is carried into the record and uses its dimensions", () => {
+  const blank = createBlankEvaluation("coding-draft", "coding");
+  assert.equal(blank.rubricId, "coding");
+  assert.deepEqual(Object.keys(blank.ratings.A), ["correctness", "requirements", "clarity", "edge_cases", "safety"]);
+  const normalized = normalizeEvaluation({ ...blank, title: "Coding review" });
+  assert.equal(normalized.rubricId, "coding");
+  assert.equal(normalized.rubricSnapshot.rubricId, "coding");
+  assert.equal(normalized.rubricSnapshot.weights.correctness, 35);
 });

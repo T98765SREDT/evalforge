@@ -4,7 +4,16 @@ This file records user-visible changes to EvalForge.
 
 ## Unreleased
 
-- No user-visible changes yet.
+- Added a local batch review queue with duplicate prevention, pending/in-progress/completed/skipped states, skip reasons, progress summary, and links from completed queue cases to saved evaluations.
+- Added queue controls to the workspace so reviewers can move through multiple response pairs without losing the current rubric context.
+- Expanded the automated suite to 40 tests.
+
+- Added unsaved-change protection for navigation, restore, delete, and reset actions.
+- Added duplicate-as-draft for saved evaluations and clearer average score-gap metrics.
+- Added accessible confirmation dialogs with focus restoration and browser-exit protection.
+- Labeled first-use sample reviews and added a `Cmd/Ctrl+S` draft-save shortcut.
+- Marked sample records with `isSample`, labeled them in review history, and omitted them from JSON/CSV exports by default.
+- Added General, Coding, and Safety rubric presets with selected-rubric snapshots and per-dimension score recalculation.
 
 ## 1.1.0 - 2026-08-27
 

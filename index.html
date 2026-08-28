@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="EvalForge is an offline-first workspace for evaluating AI responses with transparent, weighted quality rubrics."
+      content="EvalForge is a local-first workspace for evaluating AI responses with transparent, weighted quality rubrics."
     />
     <meta name="theme-color" content="#0a0d14" />
     <title>EvalForge — AI Response Evaluation Workspace</title>
@@ -46,7 +46,7 @@
           <span class="eyebrow">Local workspace</span>
           <strong>Your data stays here</strong>
           <p>Evaluations are stored only in this browser unless you export them.</p>
-          <div class="privacy-status"><span></span> Offline-first</div>
+          <div class="privacy-status"><span></span> Local-first</div>
         </div>
 
         <div class="sidebar-footer">
@@ -113,7 +113,7 @@
             </article>
             <article class="metric-card">
               <div class="metric-icon cyan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 14 4-4 4 3 6-7 2 2-8 9-4-3-2 2z" /></svg></div>
-              <div><span>Average confidence</span><strong id="metric-confidence">—</strong></div>
+              <div><span>Evaluator confidence</span><strong id="metric-confidence">—</strong></div>
               <small>Across completed reviews</small>
             </article>
             <article class="metric-card">
@@ -123,8 +123,8 @@
             </article>
             <article class="metric-card">
               <div class="metric-icon amber"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 6v6c0 5.2 3.4 8.8 8 10 4.6-1.2 8-4.8 8-10V6zm3.6 8.2-4.2 4.6-2.8-2.6 1.4-1.4 1.4 1.3 2.8-3z" /></svg></div>
-              <div><span>Top outcome</span><strong id="metric-winner">—</strong></div>
-              <small>Most frequent result</small>
+              <div><span>Average score gap</span><strong id="metric-winner">—</strong></div>
+              <small>Across completed reviews</small>
             </article>
           </section>
 
@@ -183,10 +183,14 @@
 
               <section class="rubric-section" aria-labelledby="rubric-title">
                 <div class="rubric-heading">
-                  <div>
-                    <span class="section-kicker">Weighted quality model</span>
-                    <h3 id="rubric-title">Score each dimension</h3>
-                  </div>
+                <div>
+                  <span class="section-kicker">Weighted quality model</span>
+                  <h3 id="rubric-title">Score each dimension</h3>
+                  <p id="rubric-description" class="rubric-description">A balanced review for everyday AI responses.</p>
+                </div>
+                <label class="rubric-picker">Rubric
+                  <select id="rubric-select" aria-label="Choose evaluation rubric"></select>
+                </label>
                   <div class="rating-legend" aria-label="Rating scale"><span>1 Poor</span><i></i><span>3 Adequate</span><i></i><span>5 Excellent</span></div>
                 </div>
                 <div class="rubric-table" role="table" aria-label="Response scoring rubric">
@@ -205,7 +209,7 @@
                   <div><span>Response A score</span><strong id="score-label-a">Not scored</strong><small id="completion-a">0 of 5 dimensions</small></div>
                 </div>
                 <div class="verdict-block">
-                  <span class="section-kicker">Calculated verdict</span>
+                  <span id="score-summary-title" class="section-kicker">Calculated verdict</span>
                   <div id="winner-mark" class="winner-mark pending">—</div>
                   <strong id="winner-title">Score both responses</strong>
                   <p id="winner-detail">Complete the rubric to calculate a transparent winner.</p>
@@ -246,7 +250,8 @@
 
               <div class="form-actions">
                 <div>
-                  <button id="save-draft" class="button ghost" type="button">Save as draft</button>
+                  <button id="queue-case" class="button ghost" type="button">Add to batch queue</button>
+                  <button id="save-draft" class="button ghost" type="button" aria-keyshortcuts="Control+S Meta+S">Save as draft</button>
                   <span class="form-helper">Stored only after a successful local save</span>
                 </div>
                 <button class="button primary large" type="submit">
@@ -255,6 +260,21 @@
                 </button>
               </div>
             </form>
+          </section>
+
+          <section id="batch-queue" class="queue-section" aria-labelledby="queue-title">
+            <div class="section-header queue-header">
+              <div>
+                <span class="section-kicker">Batch workflow</span>
+                <h2 id="queue-title">Review queue</h2>
+                <p>Collect complete prompt/response pairs and work through them one at a time.</p>
+              </div>
+              <div class="queue-actions">
+                <span id="queue-summary" class="queue-summary">0 cases</span>
+                <button id="clear-queue" class="button ghost compact" type="button">Clear queue</button>
+              </div>
+            </div>
+            <div id="queue-list" class="queue-list" aria-live="polite"></div>
           </section>
 
           <section id="library" class="library-section" aria-labelledby="library-title">
@@ -283,8 +303,8 @@
 
           <footer class="site-footer">
             <div class="brand mini"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M7 6.5h18v5H12v3h10v4H12v3h13v5H7z" /></svg></span><span>EvalForge</span></div>
-            <p>Transparent AI evaluation, built for thoughtful human judgment.</p>
-            <span>Offline-first · No account required</span>
+            <p>Transparent AI evaluation with local, auditable records.</p>
+            <span class="footer-evidence"><a href="https://github.com/T98765SREDT/evalforge">Source</a> · 40 tests · v1.1.0 · Local-first</span>
           </footer>
         </div>
       </main>
@@ -310,7 +330,7 @@
         <span>Selected export</span>
         <strong id="import-filename">—</strong>
         <b id="import-summary">Waiting for a valid export</b>
-        <p id="import-detail">No local data changes until you confirm this preview.</p>
+        <p id="import-detail" aria-live="polite">No local data changes until you confirm this preview.</p>
       </div>
       <label class="field import-mode-field">
         <span>Restore behavior</span>
@@ -323,6 +343,35 @@
       <div class="dialog-actions">
         <button id="cancel-import" class="button ghost" type="button">Cancel</button>
         <button id="apply-import" class="button primary" type="button" disabled>Restore evaluations</button>
+      </div>
+    </dialog>
+
+    <dialog id="unsaved-dialog" class="methodology-dialog confirm-dialog" aria-labelledby="unsaved-title" aria-describedby="unsaved-message">
+      <div class="dialog-header">
+        <div><span class="eyebrow accent">Unsaved changes</span><h2 id="unsaved-title">Keep your current work?</h2></div>
+        <button id="close-unsaved" class="icon-button" type="button" aria-label="Keep editing">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z" /></svg>
+        </button>
+      </div>
+      <p id="unsaved-message">This evaluation has changes that have not been saved locally.</p>
+      <div class="dialog-actions">
+        <button id="keep-unsaved" class="button ghost" type="button">Keep editing</button>
+        <button id="discard-unsaved" class="button danger" type="button">Discard changes</button>
+        <button id="save-unsaved" class="button primary" type="button">Save draft</button>
+      </div>
+    </dialog>
+
+    <dialog id="confirm-dialog" class="methodology-dialog confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+      <div class="dialog-header">
+        <div><span class="eyebrow accent">Confirm action</span><h2 id="confirm-title">Are you sure?</h2></div>
+        <button id="close-confirm" class="icon-button" type="button" aria-label="Cancel">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L6.4 5z" /></svg>
+        </button>
+      </div>
+      <p id="confirm-message">This action cannot be undone.</p>
+      <div class="dialog-actions">
+        <button id="cancel-confirm" class="button ghost" type="button">Cancel</button>
+        <button id="accept-confirm" class="button danger" type="button">Confirm</button>
       </div>
     </dialog>
 

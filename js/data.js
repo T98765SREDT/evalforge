@@ -65,7 +65,7 @@ export const sampleEvaluations = [
     tags: ["SQL", "Databases", "Technical writing"],
     notes: "Response A correctly distinguishes row-level and group-level filtering. Response B incorrectly references a non-grouped status value in HAVING and fails to filter active employees before aggregation."
   }
-];
+].map((evaluation) => ({ ...evaluation, isSample: true }));
 
 export const quickPrompts = [
   {

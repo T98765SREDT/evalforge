@@ -15,9 +15,12 @@ The public demo stores evaluations in the current browser. It does not send prom
 
 ## Verified behavior
 
-- Five fixed dimensions produce a score out of 100. Each saved review records the rubric version, weights, tie threshold, and per-dimension score contributions.
+- Three built-in five-dimension rubrics (General, Coding, and Safety) produce a score out of 100. Each saved review records the selected rubric version, weights, tie threshold, and per-dimension score contributions.
 - Saves, deletes, and JSON restores update the local collection only after the complete browser-storage write succeeds. A failed write leaves the previous library unchanged.
-- The repository has 26 Node tests for scoring, migration, storage failures, import planning, and export serialization. CI runs them on Node.js 18, 20, and 22.
+- Unsaved edits are protected when starting a new review, opening another record, restoring a backup, or deleting the active record; saved reviews can also be duplicated into a fresh draft.
+- The first-use sample library is labeled in the interface, and `Cmd/Ctrl+S` saves the current work as a draft without leaving the review canvas.
+- Response pairs can be added to a local batch queue, opened in sequence, skipped with a reason, and linked to the evaluation saved from that queue case.
+- The repository has 40 Node tests for scoring, rubric presets, migration, storage failures, import planning, sample-data boundaries, batch queue transitions, and export serialization. CI runs them on Node.js 18, 20, and 22.
 
 ## Quick start
 
@@ -33,12 +36,15 @@ Open [http://127.0.0.1:4173](http://127.0.0.1:4173). The development server uses
 
 ## Evaluation workflow
 
-1. Enter one prompt and two candidate responses.
-2. Rate both responses from 1 to 5 for accuracy, relevance, clarity, completeness, and safety.
-3. Review the calculated scores and winner. A difference of two points or less is a tie.
-4. Add the evidence behind the decision, optional tags, and an evaluator-confidence value.
-5. Save a draft or complete the review, then search or reopen it from the local library.
-6. Export the library as JSON or CSV. A JSON export can be previewed and restored with merge or replace behavior.
+1. Choose a rubric for the review: General, Coding, or Safety.
+2. Enter one prompt and two candidate responses.
+3. Rate both responses from 1 to 5 across the selected dimensions.
+4. Review the calculated scores and winner. A difference of two points or less is a tie.
+5. Add the evidence behind the decision, optional tags, and an evaluator-confidence value.
+6. Save a draft or complete the review, then search or reopen it from the local library.
+7. Duplicate an existing review when you want to compare a revised response or rubric decision.
+8. Add unfinished response pairs to the Review queue when you want to work through several cases in one session. Open a case to carry its prompt, responses, and rubric into the review form.
+9. Export the library as JSON or CSV. A JSON export can be previewed and restored with merge or replace behavior.
 
 On first use, the app displays three sample reviews covering JavaScript retry handling, account-security guidance, and SQL aggregation.
 
@@ -62,7 +68,7 @@ Ratings remain the source of truth. Opening a saved review recalculates its scor
 
 - Evaluations are serialized to `localStorage` under `evalforge.evaluations.v1`.
 - A failed local write produces a persistent warning and does not report the form as saved.
-- JSON exports use schema version 2 and include an export timestamp. Import validates and normalizes every record before showing accepted, repaired, and skipped counts.
+- JSON exports use schema version 2 and include an export timestamp. First-use sample records are marked with `isSample` and omitted from JSON/CSV exports by default. Import validates and normalizes every record before showing accepted, repaired, and skipped counts.
 - Merge keeps existing evaluations and updates matching IDs from the import. Replace builds a new collection from the import. Either result is committed in one storage write.
 - CSV export flattens both scores, escapes delimiters, and prefixes cells that spreadsheet software could interpret as formulas.
 
@@ -82,14 +88,15 @@ See [SECURITY.md](SECURITY.md) for the data-handling policy.
 npm test
 ```
 
-The 26 tests cover:
+The 40 tests cover:
 
-- rubric validation, weighted scores, completion, and winner/tie decisions;
+- rubric validation, built-in rubric presets, weighted scores, completion, and winner/tie decisions;
 - rubric snapshots and individual dimension contributions;
 - record normalization, duplicate-ID repair, and malformed-entry recovery;
 - successful and failed local-storage commits;
+- batch queue normalization, duplicate prevention, progress tracking, skip reasons, and evaluation links;
 - JSON schema validation plus merge and replace plans;
-- CSV escaping, spreadsheet-formula protection, and JSON serialization.
+- CSV escaping, spreadsheet-formula protection, JSON serialization, and sample-record export boundaries.
 
 GitHub Actions also checks JavaScript syntax. No test-coverage percentage is claimed, and browser interactions and visual regression still require manual review.
 

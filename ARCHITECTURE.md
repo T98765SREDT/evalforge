@@ -8,7 +8,7 @@ EvalForge is a static, single-page browser application. It has no application AP
 Prompt + responses + ratings + notes
                   |
                   v
-             js/app.js
+js/app.js
        /      |       |       \
       v       v       v        v
 scoring.js  model.js  UI state  storage.js -> localStorage
@@ -18,6 +18,10 @@ scoring.js  model.js  UI state  storage.js -> localStorage
               |
               v
            export.js -> JSON or CSV download
+
+prompt pairs -> js/queue.js -> queue state -> localStorage
+                                      |
+                                      └── linked evaluation id
 ```
 
 The form state is held in memory while an evaluation is edited. A save, delete, or restore action first builds a complete candidate collection and writes it to storage. The in-memory library changes only after that write succeeds. Export functions receive the collection and return text; only the browser download helper interacts with `Blob` and `URL` APIs.
@@ -65,6 +69,8 @@ rubricSnapshot.rubricVersion, tieThreshold, weights, dimensions, contributions
 ## Saved data
 
 `js/storage.js` stores the evaluation array under `evalforge.evaluations.v1`. Parsing and write failures are caught so the UI can recover without crashing. Loading reports repaired and skipped records. Writes return an explicit result, and `commitEvaluations()` keeps the prior in-memory collection when a browser storage write fails.
+
+The review queue is stored separately under `evalforge.review-queue.v1`. A queue item has a stable ID, prompt/response pair, status (`queued`, `in_progress`, `skipped`, or `completed`), optional skip reason, and an optional linked evaluation ID. Queue transitions are normalized before persistence, duplicate prompt/response pairs are rejected at add time, and the UI only advances the active case after a successful storage write. This keeps a multi-case review session recoverable without coupling queue data to the evaluation record schema.
 
 JSON exports use schema version 2. The restore workflow accepts supported schema versions, normalizes every record, previews the outcome, and then produces either a merge or replace candidate. Matching IDs in merge mode use the imported record. No collection changes occur until the candidate is saved successfully.
 

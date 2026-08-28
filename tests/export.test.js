@@ -49,3 +49,14 @@ test("JSON export is versioned and preserves structured evaluation data", () => 
   assert.equal(parsed.evaluations[0].scores.A.score, 92);
   assert.ok(!Number.isNaN(Date.parse(parsed.exportedAt)));
 });
+
+test("JSON and CSV exports omit sample records by default", () => {
+  const sample = { ...evaluation, id: "sample", isSample: true };
+  const json = JSON.parse(evaluationsToJson([sample, evaluation]));
+  assert.equal(json.evaluationCount, 1);
+  assert.equal(json.evaluations[0].id, "eval-1");
+  const csv = evaluationsToCsv([sample, evaluation]);
+  assert.match(csv, /eval-1/);
+  assert.doesNotMatch(csv, /sample/);
+  assert.match(evaluationsToCsv([sample], { includeSamples: true }), /sample/);
+});

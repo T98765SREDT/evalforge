@@ -1,6 +1,7 @@
 import {
   DEFAULT_RUBRIC,
   DEFAULT_TIE_THRESHOLD,
+  getRubricProfile,
   RUBRIC_VERSION,
   calculateDimensionContributions,
   calculateWeightedScore,
@@ -13,6 +14,8 @@ export const CURRENT_SCHEMA_VERSION = 2;
 const TEXT_FIELDS = ["title", "prompt", "responseA", "responseB", "notes"];
 const RECOGNIZED_FIELDS = new Set([
   "id",
+  "isSample",
+  "rubricId",
   "title",
   "prompt",
   "responseA",
@@ -44,9 +47,9 @@ function normalizeRating(value) {
   return Number.isInteger(rating) && rating >= 1 && rating <= 5 ? rating : 0;
 }
 
-function normalizeRatings(value) {
+function normalizeRatings(value, rubric = DEFAULT_RUBRIC) {
   const source = isPlainObject(value) ? value : {};
-  return Object.fromEntries(DEFAULT_RUBRIC.map(({ id }) => [id, normalizeRating(source[id])]));
+  return Object.fromEntries(rubric.map(({ id }) => [id, normalizeRating(source[id])]));
 }
 
 function normalizeTags(value) {
@@ -63,16 +66,20 @@ export function createId() {
   return globalThis.crypto?.randomUUID?.() || `eval-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-export function createBlankEvaluation(id = createId()) {
-  const ratings = { A: emptyRatings(), B: emptyRatings() };
+export function createBlankEvaluation(id = createId(), rubricId = "general") {
+  const rubricProfile = getRubricProfile(rubricId);
+  const rubric = rubricProfile.dimensions;
+  const ratings = { A: emptyRatings(rubric), B: emptyRatings(rubric) };
   const scores = {
-    A: calculateWeightedScore(ratings.A),
-    B: calculateWeightedScore(ratings.B)
+    A: calculateWeightedScore(ratings.A, rubric),
+    B: calculateWeightedScore(ratings.B, rubric)
   };
 
   return {
     recordVersion: CURRENT_SCHEMA_VERSION,
     id,
+    isSample: false,
+    rubricId: rubricProfile.id,
     title: "",
     createdAt: null,
     updatedAt: null,
@@ -86,13 +93,15 @@ export function createBlankEvaluation(id = createId()) {
     confidence: 80,
     tags: [],
     notes: "",
-    rubricSnapshot: createRubricSnapshot(ratings)
+    rubricSnapshot: createRubricSnapshot(ratings, rubric, rubricProfile.tieThreshold, rubricProfile)
   };
 }
 
-export function createRubricSnapshot(ratings, rubric = DEFAULT_RUBRIC, tieThreshold = DEFAULT_TIE_THRESHOLD) {
+export function createRubricSnapshot(ratings, rubric = DEFAULT_RUBRIC, tieThreshold = DEFAULT_TIE_THRESHOLD, profile = null) {
   return {
-    rubricVersion: RUBRIC_VERSION,
+    rubricId: profile?.id || "general",
+    rubricName: profile?.name || "General review",
+    rubricVersion: profile?.version || RUBRIC_VERSION,
     tieThreshold,
     weights: Object.fromEntries(rubric.map(({ id, weight }) => [id, weight])),
     dimensions: rubric.map(({ id, label, weight }) => ({ id, label, weight })),
@@ -108,16 +117,18 @@ export function normalizeEvaluation(value, { idFactory = createId } = {}) {
 
   const rawId = typeof value.id === "string" ? value.id.trim() : "";
   const id = rawId && rawId.length <= 128 ? rawId : idFactory();
+  const rubricProfile = getRubricProfile(typeof value.rubricId === "string" ? value.rubricId : "general");
+  const rubric = rubricProfile.dimensions;
   const ratings = {
-    A: normalizeRatings(value.ratings?.A),
-    B: normalizeRatings(value.ratings?.B)
+    A: normalizeRatings(value.ratings?.A, rubric),
+    B: normalizeRatings(value.ratings?.B, rubric)
   };
   const scores = {
-    A: calculateWeightedScore(ratings.A),
-    B: calculateWeightedScore(ratings.B)
+    A: calculateWeightedScore(ratings.A, rubric),
+    B: calculateWeightedScore(ratings.B, rubric)
   };
   const winner = scores.A.isComplete && scores.B.isComplete
-    ? determineWinner(scores.A.score, scores.B.score)
+    ? determineWinner(scores.A.score, scores.B.score, rubricProfile.tieThreshold)
     : "pending";
   const createdAt = validDate(value.createdAt);
   const updatedAt = validDate(value.updatedAt) || createdAt;
@@ -125,6 +136,8 @@ export function normalizeEvaluation(value, { idFactory = createId } = {}) {
   const normalized = {
     recordVersion: CURRENT_SCHEMA_VERSION,
     id,
+    isSample: value.isSample === true,
+    rubricId: rubricProfile.id,
     title: "",
     createdAt,
     updatedAt,
@@ -138,7 +151,7 @@ export function normalizeEvaluation(value, { idFactory = createId } = {}) {
     confidence: clampConfidence(value.confidence),
     tags: normalizeTags(value.tags),
     notes: "",
-    rubricSnapshot: createRubricSnapshot(ratings)
+    rubricSnapshot: createRubricSnapshot(ratings, rubric, rubricProfile.tieThreshold, rubricProfile)
   };
 
   for (const field of TEXT_FIELDS) {

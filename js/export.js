@@ -22,8 +22,12 @@ export function escapeCsv(value) {
   return /[",\n\r]/.test(normalized) ? `"${normalized.replaceAll('"', '""')}"` : normalized;
 }
 
-export function evaluationsToCsv(evaluations) {
-  const rows = evaluations.map((evaluation) => {
+function exportableEvaluations(evaluations, includeSamples = false) {
+  return includeSamples ? evaluations : evaluations.filter((evaluation) => evaluation?.isSample !== true);
+}
+
+export function evaluationsToCsv(evaluations, { includeSamples = false } = {}) {
+  const rows = exportableEvaluations(evaluations, includeSamples).map((evaluation) => {
     const flat = {
       ...evaluation,
       scoreA: evaluation.scores?.A?.score ?? "",
@@ -35,13 +39,14 @@ export function evaluationsToCsv(evaluations) {
   return [CSV_COLUMNS.join(","), ...rows].join("\n");
 }
 
-export function evaluationsToJson(evaluations) {
+export function evaluationsToJson(evaluations, { includeSamples = false } = {}) {
+  const records = exportableEvaluations(evaluations, includeSamples);
   return JSON.stringify(
     {
       schemaVersion: CURRENT_SCHEMA_VERSION,
       exportedAt: new Date().toISOString(),
-      evaluationCount: evaluations.length,
-      evaluations
+      evaluationCount: records.length,
+      evaluations: records
     },
     null,
     2

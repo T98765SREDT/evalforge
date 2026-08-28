@@ -1,15 +1,18 @@
 import {
-  DEFAULT_RUBRIC,
+  RUBRIC_PRESETS,
   RATING_LABELS,
   calculateWeightedScore,
   determineWinner,
+  getRubric,
+  getRubricProfile,
   scoreTone
 } from "./scoring.js";
 import { downloadTextFile, evaluationsToCsv, evaluationsToJson } from "./export.js";
 import { createImportPlan, parseEvaluationImport } from "./import.js";
-import { createBlankEvaluation, normalizeEvaluation } from "./model.js";
+import { createBlankEvaluation, createRubricSnapshot, normalizeEvaluation } from "./model.js";
 import { quickPrompts, sampleEvaluations } from "./data.js";
-import { commitEvaluations, loadEvaluationState } from "./storage.js";
+import { completeCase, createBatch, enqueueCase, queueProgress, skipCase, startCase } from "./queue.js";
+import { commitEvaluations, commitQueue, loadEvaluationState, loadQueueState } from "./storage.js";
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -27,10 +30,17 @@ const fields = {
 
 const initialState = loadEvaluationState(sampleEvaluations);
 let evaluations = initialState.evaluations;
+const initialQueueState = loadQueueState(createBatch({ name: "Review queue" }));
+let reviewQueue = initialQueueState.batch;
 let current = createBlankEvaluation();
 let pendingImport = null;
 let formIsDirty = false;
 let toastTimer;
+let pendingUnsavedAction = null;
+let unsavedReturnFocus = null;
+let pendingConfirmation = null;
+let confirmationReturnFocus = null;
+let activeQueueCaseId = null;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -72,7 +82,10 @@ function scoreLabel(result) {
 }
 
 function renderRubric() {
-  $("#rubric-rows").innerHTML = DEFAULT_RUBRIC.map((dimension) => `
+  const rubric = getRubric(current.rubricId);
+  $("#rubric-select").value = current.rubricId;
+  $("#rubric-description").textContent = getRubricProfile(current.rubricId).description;
+  $("#rubric-rows").innerHTML = rubric.map((dimension) => `
     <div class="rubric-row" role="row" data-dimension="${dimension.id}">
       <div role="rowheader">
         <div class="dimension-title">
@@ -119,7 +132,8 @@ function renderQuickPrompts() {
 }
 
 function renderMethodology() {
-  $("#methodology-list").innerHTML = DEFAULT_RUBRIC.map((dimension, index) => `
+  const rubric = getRubric(current.rubricId);
+  $("#methodology-list").innerHTML = rubric.map((dimension, index) => `
     <div class="methodology-item">
       <span>${String(index + 1).padStart(2, "0")}</span>
       <div><strong>${dimension.label}</strong><small>${dimension.description}</small></div>
@@ -145,13 +159,35 @@ function syncCurrentFromForm() {
 }
 
 function recalculateCurrent() {
+  const rubric = getRubric(current.rubricId);
   current.scores = {
-    A: calculateWeightedScore(current.ratings.A),
-    B: calculateWeightedScore(current.ratings.B)
+    A: calculateWeightedScore(current.ratings.A, rubric),
+    B: calculateWeightedScore(current.ratings.B, rubric)
   };
   current.winner = current.scores.A.isComplete && current.scores.B.isComplete
-    ? determineWinner(current.scores.A.score, current.scores.B.score)
+    ? determineWinner(current.scores.A.score, current.scores.B.score, getRubricProfile(current.rubricId).tieThreshold)
     : "pending";
+}
+
+function populateRubricOptions() {
+  $("#rubric-select").innerHTML = Object.values(RUBRIC_PRESETS)
+    .map((profile) => `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</option>`)
+    .join("");
+}
+
+function switchRubric(rubricId) {
+  const profile = getRubricProfile(rubricId);
+  const previous = current.ratings || { A: {}, B: {} };
+  current.rubricId = profile.id;
+  current.ratings = {
+    A: Object.fromEntries(profile.dimensions.map(({ id }) => [id, previous.A?.[id] || 0])),
+    B: Object.fromEntries(profile.dimensions.map(({ id }) => [id, previous.B?.[id] || 0]))
+  };
+  current.rubricSnapshot = createRubricSnapshot(current.ratings, profile.dimensions, profile.tieThreshold, profile);
+  setDirty();
+  renderRubric();
+  renderMethodology();
+  renderCurrent();
 }
 
 function populateForm(evaluation) {
@@ -268,6 +304,72 @@ function setSaveError() {
   );
 }
 
+function closeDialogAndRestoreFocus(dialog, focusTarget) {
+  if (dialog.open) dialog.close();
+  if (focusTarget && typeof focusTarget.focus === "function") focusTarget.focus();
+}
+
+function runOrConfirmUnsaved(action, trigger = document.activeElement) {
+  if (!formIsDirty) {
+    action();
+    return;
+  }
+  pendingUnsavedAction = action;
+  unsavedReturnFocus = trigger;
+  const dialog = $("#unsaved-dialog");
+  if (!dialog.open) dialog.showModal();
+  $("#keep-unsaved").focus();
+}
+
+function resolveUnsaved(choice) {
+  const action = pendingUnsavedAction;
+  const returnFocus = unsavedReturnFocus;
+  if (choice === "keep") {
+    pendingUnsavedAction = null;
+    unsavedReturnFocus = null;
+    closeDialogAndRestoreFocus($("#unsaved-dialog"), returnFocus);
+    return;
+  }
+
+  if (choice === "save") {
+    if (!saveCurrent("draft")) return;
+  } else {
+    formIsDirty = false;
+  }
+
+  pendingUnsavedAction = null;
+  unsavedReturnFocus = null;
+  closeDialogAndRestoreFocus($("#unsaved-dialog"), returnFocus);
+  if (action) action();
+}
+
+function askConfirmation({ title, message, confirmLabel = "Confirm", onConfirm, trigger = document.activeElement }) {
+  pendingConfirmation = onConfirm;
+  confirmationReturnFocus = trigger;
+  $("#confirm-title").textContent = title;
+  $("#confirm-message").textContent = message;
+  $("#accept-confirm").textContent = confirmLabel;
+  const dialog = $("#confirm-dialog");
+  if (!dialog.open) dialog.showModal();
+  $("#cancel-confirm").focus();
+}
+
+function cancelConfirmation() {
+  pendingConfirmation = null;
+  const returnFocus = confirmationReturnFocus;
+  confirmationReturnFocus = null;
+  closeDialogAndRestoreFocus($("#confirm-dialog"), returnFocus);
+}
+
+function acceptConfirmation() {
+  const action = pendingConfirmation;
+  pendingConfirmation = null;
+  const returnFocus = confirmationReturnFocus;
+  confirmationReturnFocus = null;
+  closeDialogAndRestoreFocus($("#confirm-dialog"), returnFocus);
+  if (action) action();
+}
+
 function showDataNotice(kind, message) {
   const notice = $("#data-notice");
   notice.hidden = false;
@@ -283,6 +385,14 @@ function clearErrorNotice() {
     notice.hidden = true;
     notice.dataset.kind = "";
   }
+}
+
+function setImportFeedback(kind, summary, detail) {
+  const summaryElement = $("#import-summary");
+  const detailElement = $("#import-detail");
+  summaryElement.textContent = summary;
+  detailElement.textContent = detail;
+  detailElement.dataset.kind = kind;
 }
 
 function saveCurrent(status) {
@@ -325,6 +435,10 @@ function saveCurrent(status) {
   renderCurrent();
   renderMetrics();
   renderHistory();
+  if (status === "complete" && activeQueueCaseId) {
+    const queueResult = completeCase(reviewQueue, activeQueueCaseId, candidate.id);
+    if (queueResult.updated && persistQueue(queueResult.batch, null)) activeQueueCaseId = null;
+  }
   showToast(status === "complete" ? "Evaluation completed and saved" : "Draft saved locally");
   return true;
 }
@@ -349,17 +463,18 @@ function renderMetrics() {
   const coverage = allScores.length
     ? Math.round(allScores.reduce((sum, score) => sum + Number(score.completion || 0), 0) / allScores.length)
     : null;
-  const outcomes = complete.reduce((counts, item) => {
-    counts[item.winner] = (counts[item.winner] || 0) + 1;
-    return counts;
-  }, {});
-  const topOutcome = Object.entries(outcomes).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const completedGaps = complete
+    .filter((item) => item.scores?.A?.isComplete && item.scores?.B?.isComplete)
+    .map((item) => Math.abs(Number(item.scores.A.score) - Number(item.scores.B.score)));
+  const averageGap = completedGaps.length
+    ? Math.round(completedGaps.reduce((sum, gap) => sum + gap, 0) / completedGaps.length)
+    : null;
 
   $("#metric-total").textContent = evaluations.length;
   $("#metric-complete").textContent = `${complete.length} complete`;
   $("#metric-confidence").textContent = confidence === null ? "—" : `${confidence}%`;
   $("#metric-coverage").textContent = coverage === null ? "—" : `${coverage}%`;
-  $("#metric-winner").textContent = topOutcome ? (topOutcome === "tie" ? "Tie" : `Response ${topOutcome}`) : "—";
+  $("#metric-winner").textContent = averageGap === null ? "—" : `${averageGap} pts`;
   $("#nav-count").textContent = evaluations.length;
 }
 
@@ -387,7 +502,7 @@ function renderHistory() {
     return `
       <article class="history-item">
         <div class="history-main">
-          <span>${escapeHtml(formatDate(evaluation.updatedAt || evaluation.createdAt))} · ${escapeHtml(evaluation.status)}</span>
+          <span>${escapeHtml(formatDate(evaluation.updatedAt || evaluation.createdAt))} · ${escapeHtml(evaluation.status)}${evaluation.isSample ? " · Sample" : ""}</span>
           <strong title="${escapeHtml(evaluation.title)}">${escapeHtml(evaluation.title || titleFromPrompt(evaluation.prompt))}</strong>
           <p>${escapeHtml(evaluation.prompt)}</p>
           <div class="tag-row">${evaluation.tags.slice(0, 4).map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div>
@@ -404,6 +519,9 @@ function renderHistory() {
           <button type="button" data-edit="${escapeHtml(evaluation.id)}" title="Open evaluation" aria-label="Open ${escapeHtml(evaluation.title)}">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 15.5 10-10 3.5 3.5-10 10H5zm11.4-11.4 1.5-1.5 3.5 3.5-1.5 1.5zM4 20h16v2H4z" /></svg>
           </button>
+          <button type="button" data-duplicate="${escapeHtml(evaluation.id)}" title="Duplicate evaluation" aria-label="Duplicate ${escapeHtml(evaluation.title)}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8V5h11v11h-3v3H5V8zm2 0h6v6h1V7h-9v1zm-3 2v7h7v-7z" /></svg>
+          </button>
           <button class="delete" type="button" data-delete="${escapeHtml(evaluation.id)}" title="Delete evaluation" aria-label="Delete ${escapeHtml(evaluation.title)}">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6V4h10v2h3v2h-1l-1 13H6L5 8H4V6zm1 2 .8 11h6.4L16 8z" /></svg>
           </button>
@@ -411,6 +529,122 @@ function renderHistory() {
       </article>
     `;
   }).join("");
+}
+
+const queueStatusLabels = {
+  pending: "Pending",
+  in_progress: "In progress",
+  completed: "Completed",
+  skipped: "Skipped"
+};
+
+function persistQueue(candidate, message = "Review queue updated") {
+  const transaction = commitQueue(candidate, reviewQueue);
+  if (!transaction.ok) {
+    showDataNotice("error", "The review queue could not be saved. Your current queue remains unchanged.");
+    showToast("Queue save failed");
+    return false;
+  }
+  reviewQueue = transaction.batch;
+  renderQueue();
+  if (message) showToast(message);
+  return true;
+}
+
+function renderQueue() {
+  const progress = queueProgress(reviewQueue);
+  const summary = progress.total
+    ? `${progress.finished}/${progress.total} finished (${progress.percent}%) · ${progress.pending} pending${progress.inProgress ? ` · ${progress.inProgress} active` : ""}`
+    : "No queued cases";
+  $("#queue-summary").textContent = summary;
+  if (!progress.total) {
+    $("#queue-list").innerHTML = `<div class="queue-empty"><strong>Your batch queue is empty</strong><span>Fill both responses, then choose “Add to batch queue” to work through several reviews in sequence.</span></div>`;
+    return;
+  }
+  $("#queue-list").innerHTML = reviewQueue.cases.map((item) => `
+    <article class="queue-item">
+      <div>
+        <strong>${escapeHtml(item.title)}</strong>
+        <small>${escapeHtml(getRubricProfile(item.rubricId).name)} · added ${escapeHtml(formatDate(item.createdAt))}${item.skipReason ? ` · ${escapeHtml(item.skipReason)}` : ""}</small>
+      </div>
+      <span class="queue-status ${escapeHtml(item.status)}">${escapeHtml(queueStatusLabels[item.status] || "Pending")}</span>
+      <div class="queue-item-actions">
+        ${["pending", "in_progress"].includes(item.status) ? `<button class="button ghost" type="button" data-queue-open="${escapeHtml(item.id)}">Open</button><button class="button ghost" type="button" data-queue-skip="${escapeHtml(item.id)}">Skip</button>` : ""}
+      </div>
+    </article>
+  `).join("");
+}
+
+function queueCurrentCase() {
+  syncCurrentFromForm();
+  try {
+    const result = enqueueCase(reviewQueue, {
+      title: current.title || titleFromPrompt(current.prompt),
+      prompt: current.prompt,
+      responseA: current.responseA,
+      responseB: current.responseB,
+      rubricId: current.rubricId
+    });
+    if (result.duplicate) {
+      showToast("This prompt and response pair is already in the queue");
+      return;
+    }
+    persistQueue(result.batch, "Added to the review queue");
+  } catch (error) {
+    showToast(error.message || "Add both responses before queueing this case");
+  }
+}
+
+function openQueueCase(caseId) {
+  const item = reviewQueue.cases.find((candidate) => candidate.id === caseId);
+  if (!item) return;
+  const result = startCase(reviewQueue, caseId);
+  if (result.queuedCase) persistQueue(result.batch, null);
+  activeQueueCaseId = caseId;
+  const blank = createBlankEvaluation(undefined, item.rubricId);
+  populateForm(normalizeEvaluation({
+    ...blank,
+    title: item.title,
+    prompt: item.prompt,
+    responseA: item.responseA,
+    responseB: item.responseB
+  }));
+  setDirty();
+  $("#workspace").scrollIntoView({ behavior: "smooth", block: "start" });
+  showToast("Queue case opened");
+}
+
+function skipQueueCase(caseId) {
+  const item = reviewQueue.cases.find((candidate) => candidate.id === caseId);
+  if (!item) return;
+  askConfirmation({
+    title: "Skip this queue case?",
+    message: `“${item.title}” will remain in the queue history as skipped.`,
+    confirmLabel: "Skip case",
+    trigger: document.activeElement,
+    onConfirm: () => {
+      const result = skipCase(reviewQueue, caseId);
+      const saved = persistQueue(result.batch, "Queue case skipped");
+      if (saved && activeQueueCaseId === caseId) {
+        activeQueueCaseId = null;
+        resetCurrent({ scroll: false });
+      }
+    }
+  });
+}
+
+function clearQueue() {
+  if (!reviewQueue.cases.length) return;
+  askConfirmation({
+    title: "Clear the review queue?",
+    message: "All queued cases will be removed from this browser. Saved evaluations are not affected.",
+    confirmLabel: "Clear queue",
+    trigger: $("#clear-queue"),
+    onConfirm: () => {
+      const saved = persistQueue(createBatch({ id: reviewQueue.id, name: reviewQueue.name, rubricId: reviewQueue.rubricId, createdAt: reviewQueue.createdAt }), "Review queue cleared");
+      if (saved) activeQueueCaseId = null;
+    }
+  });
 }
 
 function showToast(message) {
@@ -421,9 +655,39 @@ function showToast(message) {
 }
 
 function resetCurrent({ scroll = true } = {}) {
+  activeQueueCaseId = null;
   populateForm(createBlankEvaluation());
   setReady();
   if (scroll) $("#workspace").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function duplicateEvaluation(evaluation) {
+  activeQueueCaseId = null;
+  const blank = createBlankEvaluation();
+  const duplicate = normalizeEvaluation({
+    ...structuredClone(evaluation),
+    id: blank.id,
+    title: `${evaluation.title || titleFromPrompt(evaluation.prompt)} (copy)`,
+    createdAt: null,
+    updatedAt: null,
+    status: "draft"
+  });
+  if (!duplicate) return;
+
+  const transaction = commitEvaluations([duplicate, ...evaluations], evaluations);
+  if (!transaction.ok) {
+    setSaveError();
+    showToast("Could not duplicate locally. Your evaluations were not changed.");
+    return;
+  }
+
+  evaluations = transaction.evaluations;
+  populateForm(duplicate);
+  setSaved();
+  renderMetrics();
+  renderHistory();
+  $("#workspace").scrollIntoView({ behavior: "smooth", block: "start" });
+  showToast("Evaluation duplicated as a draft");
 }
 
 function updateImportPreview() {
@@ -449,6 +713,7 @@ async function previewImportFile(event) {
   pendingImport = null;
   $("#apply-import").disabled = true;
   $("#import-filename").textContent = file.name;
+  setImportFeedback("neutral", "Reading export…", "Checking the file before showing a restore preview.");
 
   try {
     if (file.size > 5 * 1024 * 1024) {
@@ -457,10 +722,10 @@ async function previewImportFile(event) {
     pendingImport = parseEvaluationImport(await file.text());
     $("#import-mode").value = "merge";
     $("#apply-import").disabled = false;
+    $("#import-detail").dataset.kind = "success";
     updateImportPreview();
   } catch (error) {
-    $("#import-summary").textContent = "Import unavailable";
-    $("#import-detail").textContent = error.message || "EvalForge could not read this file.";
+    setImportFeedback("error", "Import unavailable", error.message || "EvalForge could not read this file.");
   }
 
   $("#import-dialog").showModal();
@@ -528,8 +793,11 @@ function bindEvents() {
   });
 
   $("#save-draft").addEventListener("click", () => saveCurrent("draft"));
-  $("#new-evaluation").addEventListener("click", () => resetCurrent());
-  $("#clear-form").addEventListener("click", () => resetCurrent({ scroll: false }));
+  $("#queue-case").addEventListener("click", queueCurrentCase);
+  $("#clear-queue").addEventListener("click", clearQueue);
+  $("#rubric-select").addEventListener("change", (event) => switchRubric(event.currentTarget.value));
+  $("#new-evaluation").addEventListener("click", (event) => runOrConfirmUnsaved(() => resetCurrent(), event.currentTarget));
+  $("#clear-form").addEventListener("click", (event) => runOrConfirmUnsaved(() => resetCurrent({ scroll: false }), event.currentTarget));
   $("#copy-verdict").addEventListener("click", copyVerdict);
 
   $("#quick-prompt-buttons").addEventListener("click", (event) => {
@@ -549,56 +817,115 @@ function bindEvents() {
   $("#history-search").addEventListener("input", renderHistory);
   $("#history-filter").addEventListener("change", renderHistory);
 
+  $("#queue-list").addEventListener("click", (event) => {
+    const openButton = event.target.closest("[data-queue-open]");
+    const skipButton = event.target.closest("[data-queue-skip]");
+    if (openButton) runOrConfirmUnsaved(() => openQueueCase(openButton.dataset.queueOpen), openButton);
+    if (skipButton) skipQueueCase(skipButton.dataset.queueSkip);
+  });
+
   $("#history-list").addEventListener("click", (event) => {
     const editButton = event.target.closest("[data-edit]");
+    const duplicateButton = event.target.closest("[data-duplicate]");
     const deleteButton = event.target.closest("[data-delete]");
+
+    if (duplicateButton) {
+      const evaluation = evaluations.find(({ id }) => id === duplicateButton.dataset.duplicate);
+      if (!evaluation) return;
+      runOrConfirmUnsaved(() => duplicateEvaluation(evaluation), duplicateButton);
+      return;
+    }
 
     if (editButton) {
       const evaluation = evaluations.find(({ id }) => id === editButton.dataset.edit);
       if (!evaluation) return;
-      populateForm(evaluation);
-      setSaved();
-      $("#workspace").scrollIntoView({ behavior: "smooth", block: "start" });
+      runOrConfirmUnsaved(() => {
+        activeQueueCaseId = null;
+        populateForm(evaluation);
+        setSaved();
+        $("#workspace").scrollIntoView({ behavior: "smooth", block: "start" });
+      }, editButton);
     }
 
     if (deleteButton) {
       const evaluation = evaluations.find(({ id }) => id === deleteButton.dataset.delete);
-      if (!evaluation || !confirm(`Delete “${evaluation.title || "Untitled evaluation"}”? This cannot be undone.`)) return;
-      const candidateEvaluations = evaluations.filter(({ id }) => id !== evaluation.id);
-      const transaction = commitEvaluations(candidateEvaluations, evaluations);
-      if (!transaction.ok) {
-        setSaveError();
-        showToast("Could not delete locally. No evaluations were changed.");
-        return;
-      }
-      evaluations = transaction.evaluations;
-      clearErrorNotice();
-      if (current.id === evaluation.id) resetCurrent({ scroll: false });
-      renderMetrics();
-      renderHistory();
-      showToast("Evaluation deleted");
+      if (!evaluation) return;
+      const deleteEvaluation = () => askConfirmation({
+        title: "Delete this evaluation?",
+        message: `“${evaluation.title || "Untitled evaluation"}” will be removed from this browser. This action cannot be undone.`,
+        confirmLabel: "Delete evaluation",
+        trigger: deleteButton,
+        onConfirm: () => {
+          const candidateEvaluations = evaluations.filter(({ id }) => id !== evaluation.id);
+          const transaction = commitEvaluations(candidateEvaluations, evaluations);
+          if (!transaction.ok) {
+            setSaveError();
+            showToast("Could not delete locally. No evaluations were changed.");
+            return;
+          }
+          evaluations = transaction.evaluations;
+          clearErrorNotice();
+          if (current.id === evaluation.id) resetCurrent({ scroll: false });
+          renderMetrics();
+          renderHistory();
+          showToast("Evaluation deleted");
+        }
+      });
+      if (current.id === evaluation.id) runOrConfirmUnsaved(deleteEvaluation, deleteButton);
+      else deleteEvaluation();
     }
   });
 
   $("#export-json").addEventListener("click", () => {
+    const exportable = evaluations.filter((evaluation) => !evaluation.isSample);
     downloadTextFile("evalforge-evaluations.json", evaluationsToJson(evaluations), "application/json");
-    showToast(`Exported ${evaluations.length} evaluations as JSON`);
+    showToast(`Exported ${exportable.length} saved evaluation${exportable.length === 1 ? "" : "s"} as JSON${exportable.length !== evaluations.length ? " · sample records skipped" : ""}`);
   });
 
   $("#export-csv").addEventListener("click", () => {
+    const exportable = evaluations.filter((evaluation) => !evaluation.isSample);
     downloadTextFile("evalforge-evaluations.csv", evaluationsToCsv(evaluations), "text/csv");
-    showToast(`Exported ${evaluations.length} evaluations as CSV`);
+    showToast(`Exported ${exportable.length} saved evaluation${exportable.length === 1 ? "" : "s"} as CSV${exportable.length !== evaluations.length ? " · sample records skipped" : ""}`);
   });
 
   $("#import-json").addEventListener("click", () => $("#import-file").click());
   $("#import-file").addEventListener("change", previewImportFile);
   $("#import-mode").addEventListener("change", updateImportPreview);
-  $("#apply-import").addEventListener("click", applyPendingImport);
+  $("#apply-import").addEventListener("click", (event) => runOrConfirmUnsaved(applyPendingImport, event.currentTarget));
   $("#close-import").addEventListener("click", () => $("#import-dialog").close());
   $("#cancel-import").addEventListener("click", () => $("#import-dialog").close());
   $("#dismiss-data-notice").addEventListener("click", () => {
     $("#data-notice").hidden = true;
     $("#data-notice").dataset.kind = "";
+  });
+
+  $("#keep-unsaved").addEventListener("click", () => resolveUnsaved("keep"));
+  $("#close-unsaved").addEventListener("click", () => resolveUnsaved("keep"));
+  $("#discard-unsaved").addEventListener("click", () => resolveUnsaved("discard"));
+  $("#save-unsaved").addEventListener("click", () => resolveUnsaved("save"));
+  $("#close-confirm").addEventListener("click", cancelConfirmation);
+  $("#cancel-confirm").addEventListener("click", cancelConfirmation);
+  $("#accept-confirm").addEventListener("click", acceptConfirmation);
+  $("#unsaved-dialog").addEventListener("cancel", (event) => {
+    event.preventDefault();
+    resolveUnsaved("keep");
+  });
+  $("#confirm-dialog").addEventListener("cancel", (event) => {
+    event.preventDefault();
+    cancelConfirmation();
+  });
+
+  window.addEventListener("beforeunload", (event) => {
+    if (!formIsDirty) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      saveCurrent("draft");
+    }
   });
 
   const dialog = $("#methodology-dialog");
@@ -623,6 +950,7 @@ function bindEvents() {
 }
 
 function initialize() {
+  populateRubricOptions();
   renderRubric();
   renderQuickPrompts();
   renderMethodology();
@@ -630,10 +958,13 @@ function initialize() {
   populateForm(current);
   renderMetrics();
   renderHistory();
+  renderQueue();
   setReady();
 
   if (initialState.error) {
     showDataNotice("error", "Local data could not be read. EvalForge opened with sample evaluations; your browser data was not overwritten.");
+  } else if (initialState.report.source === "fallback") {
+    showDataNotice("info", "Sample evaluations are shown to demonstrate the workflow. Save a draft or complete review to start your own local library.");
   } else if (initialState.report.source === "storage" && (initialState.report.repaired || initialState.report.skipped)) {
     showDataNotice(
       "info",

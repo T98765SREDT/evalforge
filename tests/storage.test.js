@@ -1,6 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { STORAGE_KEY, commitEvaluations, loadEvaluationState, saveEvaluations } from "../js/storage.js";
+import { createBatch } from "../js/queue.js";
+import {
+  QUEUE_STORAGE_KEY,
+  STORAGE_KEY,
+  commitEvaluations,
+  commitQueue,
+  loadEvaluationState,
+  loadQueueState,
+  saveEvaluations,
+  saveQueue
+} from "../js/storage.js";
 
 class MemoryStorage {
   constructor(value = null) {
@@ -9,19 +19,23 @@ class MemoryStorage {
     this.failWrite = false;
   }
 
-  getItem() {
-    if (this.failRead) throw new Error("read blocked");
-    return this.value;
-  }
-
   setItem(key, value) {
-    assert.equal(key, STORAGE_KEY);
+    assert.ok([STORAGE_KEY, QUEUE_STORAGE_KEY].includes(key));
     if (this.failWrite) throw new Error("quota exceeded");
-    this.value = value;
+    this.values ??= {};
+    this.values[key] = value;
+    if (key === STORAGE_KEY) this.value = value;
   }
 
-  removeItem() {
+  removeItem(key) {
     this.value = null;
+    this.values ??= {};
+    delete this.values[key];
+  }
+
+  getItem(key) {
+    if (this.failRead) throw new Error("read blocked");
+    return this.values?.[key] ?? (key === STORAGE_KEY ? this.value : null);
   }
 }
 
@@ -85,4 +99,28 @@ test("unreadable storage falls back without throwing or overwriting data", () =>
   assert.equal(result.report.source, "fallback");
   assert.equal(result.evaluations[0].prompt, "Fallback prompt");
   assert.equal(storage.value, "not-json");
+});
+
+test("queue storage round-trips a normalized batch", () => {
+  const storage = new MemoryStorage();
+  const batch = createBatch({
+    id: "batch-1",
+    name: "Coding queue",
+    cases: [{ id: "case-1", prompt: "Prompt", responseA: "A", responseB: "B" }]
+  });
+  assert.equal(saveQueue(batch, storage).ok, true);
+  const loaded = loadQueueState(createBatch({ id: "fallback" }), storage);
+  assert.equal(loaded.error, null);
+  assert.equal(loaded.batch.id, "batch-1");
+  assert.equal(loaded.batch.cases[0].id, "case-1");
+});
+
+test("failed queue commits preserve the prior batch", () => {
+  const storage = new MemoryStorage();
+  storage.failWrite = true;
+  const previousBatch = createBatch({ id: "previous" });
+  const candidateBatch = createBatch({ id: "candidate" });
+  const result = withoutWarnings(() => commitQueue(candidateBatch, previousBatch, storage));
+  assert.equal(result.ok, false);
+  assert.equal(result.batch.id, "previous");
 });

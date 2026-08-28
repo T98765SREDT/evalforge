@@ -1,6 +1,8 @@
 import { normalizeEvaluationCollection } from "./model.js";
+import { normalizeBatch } from "./queue.js";
 
 export const STORAGE_KEY = "evalforge.evaluations.v1";
+export const QUEUE_STORAGE_KEY = "evalforge.queue.v1";
 
 function clone(value) {
   return structuredClone(value);
@@ -66,4 +68,34 @@ export function clearStoredEvaluations(storage = globalThis.localStorage) {
     console.warn("EvalForge could not clear local storage.", error);
     return { ok: false, error };
   }
+}
+
+export function loadQueueState(fallback, storage = globalThis.localStorage) {
+  try {
+    const stored = storage.getItem(QUEUE_STORAGE_KEY);
+    if (!stored) return { batch: structuredClone(fallback), report: { source: "fallback", repaired: 0, skipped: 0 }, error: null };
+    const result = normalizeBatch(JSON.parse(stored));
+    if (!result) throw new Error("Stored queue is not an object.");
+    return { batch: result.batch, report: { ...result.report, source: "storage" }, error: null };
+  } catch (error) {
+    console.warn("EvalForge could not read the local review queue.", error);
+    return { batch: structuredClone(fallback), report: { source: "fallback", repaired: 0, skipped: 0 }, error };
+  }
+}
+
+export function saveQueue(batch, storage = globalThis.localStorage) {
+  try {
+    storage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(batch));
+    return { ok: true, error: null };
+  } catch (error) {
+    console.warn("EvalForge could not save the local review queue.", error);
+    return { ok: false, error };
+  }
+}
+
+export function commitQueue(candidate, previous, storage = globalThis.localStorage) {
+  const result = saveQueue(candidate, storage);
+  return result.ok
+    ? { ok: true, batch: structuredClone(candidate), error: null }
+    : { ok: false, batch: structuredClone(previous), error: result.error };
 }

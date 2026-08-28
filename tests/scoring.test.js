@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   DEFAULT_RUBRIC,
+  RUBRIC_PRESETS,
   calculateDimensionContributions,
   calculateWeightedScore,
   determineWinner,
@@ -13,6 +14,13 @@ import {
 
 test("default rubric weights total 100", () => {
   assert.equal(validateRubric(DEFAULT_RUBRIC), 100);
+});
+
+test("built-in rubric presets are independently weighted to 100", () => {
+  for (const profile of Object.values(RUBRIC_PRESETS)) {
+    assert.equal(validateRubric(profile.dimensions), 100);
+    assert.equal(profile.dimensions.length, 5);
+  }
 });
 
 test("all excellent ratings produce a complete 100-point score", () => {

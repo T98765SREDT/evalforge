@@ -1,4 +1,3 @@
-
 # EvalForge
 
 [![CI](https://github.com/T98765SREDT/evalforge/actions/workflows/ci.yml/badge.svg)](https://github.com/T98765SREDT/evalforge/actions/workflows/ci.yml)
@@ -6,29 +5,46 @@
 [![Runtime](https://img.shields.io/badge/runtime-browser%20native-0f766e)](index.html)
 [![License](https://img.shields.io/badge/license-MIT-0b6e99)](LICENSE)
 
-EvalForge is a browser application for comparing two AI responses against the same prompt. An evaluator rates each response on five fixed criteria, records the reason for the decision, and can export the review as JSON or CSV.
+EvalForge compares two AI responses against the same prompt, calculates a weighted verdict, and keeps the ratings and evaluator notes as a restorable local record.
 
-The application uses browser-native JavaScript, HTML, and CSS. Evaluation data is stored in the current browser; there is no application backend.
+**[Open the live demo](https://t98765sredt.github.io/evalforge/)** · [Quick start](#quick-start) · [Architecture](ARCHITECTURE.md) · [Security notes](SECURITY.md)
 
-**[Open the live demo](https://t98765sredt.github.io/evalforge/)** · [Architecture](ARCHITECTURE.md) · [Changelog](CHANGELOG.md) · [Security notes](SECURITY.md)
-
-**[Open the live demo](https://t98765sredt.github.io/evalforge/)**
+The public demo stores evaluations in the current browser. It does not send prompt or response content to an application server.
 
 ![EvalForge evaluation dashboard](docs/evalforge-dashboard.png)
 
+## Verified behavior
+
+- Five fixed dimensions produce a score out of 100. Each saved review records the rubric version, weights, tie threshold, and per-dimension score contributions.
+- Saves, deletes, and JSON restores update the local collection only after the complete browser-storage write succeeds. A failed write leaves the previous library unchanged.
+- The repository has 26 Node tests for scoring, migration, storage failures, import planning, and export serialization. CI runs them on Node.js 18, 20, and 22.
+
+## Quick start
+
+Requirements: Node.js 18 or newer. There are no runtime package dependencies to install.
+
+```bash
+git clone https://github.com/T98765SREDT/evalforge.git
+cd evalforge
+npm start
+```
+
+Open [http://127.0.0.1:4173](http://127.0.0.1:4173). The development server uses Node's built-in `http`, `fs`, and `path` modules.
+
 ## Evaluation workflow
 
-1. Enter the original prompt and two candidate responses.
+1. Enter one prompt and two candidate responses.
 2. Rate both responses from 1 to 5 for accuracy, relevance, clarity, completeness, and safety.
 3. Review the calculated scores and winner. A difference of two points or less is a tie.
-4. Add notes, tags, and an evaluator-confidence value, then save the review as a draft or complete it.
-5. Search saved reviews, export them as JSON or CSV, or restore a JSON export with a preview before any data changes.
+4. Add the evidence behind the decision, optional tags, and an evaluator-confidence value.
+5. Save a draft or complete the review, then search or reopen it from the local library.
+6. Export the library as JSON or CSV. A JSON export can be previewed and restored with merge or replace behavior.
 
-On first use, the app loads three sample reviews: JavaScript retry handling, account-security guidance, and an SQL aggregation explanation.
+On first use, the app displays three sample reviews covering JavaScript retry handling, account-security guidance, and SQL aggregation.
 
 ![EvalForge weighted verdict](docs/evalforge-verdict.png)
 
-## Scoring
+## Scoring rules
 
 | Dimension | Weight | Rating question |
 | --- | ---: | --- |
@@ -38,37 +54,27 @@ On first use, the app loads three sample reviews: JavaScript retry handling, acc
 | Completeness | 15% | Does it cover the requirements and important edge cases? |
 | Safety | 20% | Does it avoid harmful guidance and handle sensitive requests responsibly? |
 
-Each dimension contributes `rating / 5 * weight` points. The application sums those contributions and rounds the result to a score out of 100. It also reports rubric completion separately, so a partially rated response cannot be completed accidentally.
+Each dimension contributes `rating / 5 * weight` points. EvalForge sums those contributions and rounds the result to a score out of 100. Rubric completion is reported separately, and a review cannot be completed until all five dimensions are rated for both responses.
 
-Ratings are the stored source of truth. When a saved review is opened, EvalForge recalculates its score and winner rather than trusting previously derived totals.
+Ratings remain the source of truth. Opening a saved review recalculates its scores and winner instead of trusting previously derived totals.
 
-Each saved review also includes the rubric version, tie threshold, dimension weights, and per-dimension score contributions used for that verdict. This keeps the reasoning behind an exported decision inspectable.
+## Local storage, recovery, and export
 
-## Storage, export, and privacy
+- Evaluations are serialized to `localStorage` under `evalforge.evaluations.v1`.
+- A failed local write produces a persistent warning and does not report the form as saved.
+- JSON exports use schema version 2 and include an export timestamp. Import validates and normalizes every record before showing accepted, repaired, and skipped counts.
+- Merge keeps existing evaluations and updates matching IDs from the import. Replace builds a new collection from the import. Either result is committed in one storage write.
+- CSV export flattens both scores, escapes delimiters, and prefixes cells that spreadsheet software could interpret as formulas.
 
-- Reviews are serialized to `localStorage` under the versioned key `evalforge.evaluations.v1`.
-- A local write must succeed before the interface reports a review as saved. A failed write leaves the form and existing library unchanged and displays a persistent warning.
-- JSON export preserves the nested ratings and adds a schema version and export timestamp. Import previews accepted, repaired, and skipped records before offering merge or replace behavior.
-- Import and delete operations commit the complete candidate collection in one storage write; a failure leaves the prior collection unchanged.
-- CSV export flattens the two scores, escapes delimiters, and neutralizes values that spreadsheet software could interpret as formulas.
-- Stored and imported records are normalized defensively. Malformed entries are skipped or repaired without stopping the application, and the recovery count is shown in the interface.
-- Export only occurs after the user selects an export action.
-- The static application does not send prompt, response, or evaluation content to an application server.
-- `localStorage` is not encrypted or synchronized. Do not enter credentials, confidential prompts, or personal data into the public demo.
+## Privacy and limitations
 
-See [SECURITY.md](SECURITY.md) for data-handling guidance and known limits.
+- There is no account, authentication, synchronization, application database, or multi-user workspace.
+- `localStorage` is tied to one browser profile and is not encrypted. Clearing browser data can remove saved evaluations.
+- Browser storage has a size limit. EvalForge reports write failures but cannot increase the available quota.
+- JSON import is limited to 5 MB. Supported files must contain a `schemaVersion` and an `evaluations` array.
+- Do not put credentials, confidential prompts, regulated data, or personal information into the public demo.
 
-## Run locally
-
-Requirements: Node.js 18 or newer.
-
-```bash
-git clone https://github.com/T98765SREDT/evalforge.git
-cd evalforge
-npm start
-```
-
-Open [http://127.0.0.1:4173](http://127.0.0.1:4173). The local server uses only Node's built-in `http`, `fs`, and `path` modules.
+See [SECURITY.md](SECURITY.md) for the data-handling policy.
 
 ## Tests
 
@@ -76,42 +82,36 @@ Open [http://127.0.0.1:4173](http://127.0.0.1:4173). The local server uses only 
 npm test
 ```
 
-The project currently has 26 automated tests using Node's built-in test runner. They cover:
+The 26 tests cover:
 
-- rubric validation and weighted-score calculations;
-- partial completion and winner/tie decisions;
-- rubric snapshots and per-dimension score contributions;
-- score formatting;
-- CSV escaping, formula-injection protection, and flattened fields;
-- versioned JSON serialization and import validation;
-- merge and replace restore plans;
-- malformed-record migration and storage-failure rollback.
+- rubric validation, weighted scores, completion, and winner/tie decisions;
+- rubric snapshots and individual dimension contributions;
+- record normalization, duplicate-ID repair, and malformed-entry recovery;
+- successful and failed local-storage commits;
+- JSON schema validation plus merge and replace plans;
+- CSV escaping, spreadsheet-formula protection, and JSON serialization.
 
-GitHub Actions runs syntax checks and the test suite on Node.js 18, 20, and 22 for pushes and pull requests targeting `main`. No test-coverage percentage is claimed.
+GitHub Actions also checks JavaScript syntax. No test-coverage percentage is claimed, and browser interactions and visual regression still require manual review.
+
+## Architecture
+
+EvalForge is a static browser application written with ES modules, HTML, and CSS.
+
+| Path | Responsibility |
+| --- | --- |
+| `js/app.js` | Form state, DOM events, rendering, validation, and library interactions |
+| `js/scoring.js` | Rubric definition, weighted scores, completion, and winner rules |
+| `js/model.js` | Record normalization, schema migration, IDs, and rubric snapshots |
+| `js/storage.js` | Defensive local reads and transactional writes |
+| `js/import.js` | Import validation and deterministic merge/replace plans |
+| `js/export.js` | JSON and formula-safe CSV serialization |
+| `tests/` | Node tests for the domain and persistence rules |
+
+[ARCHITECTURE.md](ARCHITECTURE.md) documents the complete data flow, saved-record shape, and design constraints.
 
 ## Deployment
 
-The site is static. [`.github/workflows/pages.yml`](.github/workflows/pages.yml) publishes the repository through GitHub Pages after a push to `main`. The deployment does not add a database, account system, or server-side storage.
-
-## Project structure
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for module responsibilities, data flow, stored-record shape, and design constraints.
-
-## Project summary
-
-**EvalForge — Browser-based AI response evaluation tool**
-
-EvalForge compares two AI responses with a five-dimension weighted rubric. It supports draft and completed reviews, saves data in the browser, searches review history, and exports records as JSON or CSV. The application has no runtime package dependencies.
-
-Implementation highlights:
-
-- Moved scoring, record normalization, import, storage, and export rules into separate ES modules and covered them with Node tests.
-- Recalculates scores from saved ratings when a review is opened instead of relying on saved totals.
-- Restores versioned JSON exports with a validation preview and atomic merge or replace behavior.
-- Keeps failed saves visible and preserves the unsaved form instead of reporting success.
-- Added keyboard-friendly controls, visible focus states, reduced-motion support, and mobile layouts.
-
-Relevant skills: `JavaScript`, `HTML`, `CSS`, `Node.js testing`, `Data validation`, `Accessibility`, `AI evaluation`.
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml) publishes the static files to GitHub Pages after a push to `main`. Deployment does not add server-side storage or processing.
 
 ## License
 

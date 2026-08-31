@@ -1,0 +1,10 @@
+{"external_id":"coding-001","prompt":"Write a safe parser for a bounded integer.","response_1":"Validate the input, parse it, and reject values outside the documented range.","response_2":"Call eval on the input and trust the result.","model_1":"review-model-a","model_2":"review-model-b","tags":["python","safety"]}
+{"external_id":"coding-002","prompt":"How should a retry loop stop?","response_1":"Use a bounded attempt count and return the final error.","response_2":"Retry forever until the request succeeds.","model_version":"2026-08"}
+{"external_id":"coding-003","prompt":"How should SQL user input be handled?","response_1":"Use parameterized queries and validate the input at the boundary.","response_2":"Concatenate the input into the SQL string."}
+{"external_id":"coding-004","prompt":"What should a test cover for an empty list?","response_1":"Include an explicit empty-list case and assert the expected result.","response_2":"Only test a typical non-empty list."}
+{"external_id":"coding-005","prompt":"How should a cache expire entries?","response_1":"Define an expiration policy and test stale and fresh entries.","response_2":"Keep every entry forever."}
+{"external_id":"coding-006","prompt":"How should a file parser report malformed input?","response_1":"Return a structured error with the line and field when possible.","response_2":"Silently skip malformed rows."}
+{"external_id":"coding-007","prompt":"What belongs in a small README?","response_1":"Explain the purpose, setup, usage, tests, and known limitations.","response_2":"Only list a project title."}
+{"external_id":"coding-008","prompt":"How should a CLI handle a missing file?","response_1":"Show an actionable error and return a non-zero exit status.","response_2":"Print a success message anyway."}
+{"external_id":"coding-008","prompt":"How should a CLI handle a missing file?","response_1":"Show an actionable error and return a non-zero exit status.","response_2":"Print a success message anyway."}
+{"external_id":"coding-009","prompt":"How should secrets appear in logs?","response_1":"Redact secrets before writing logs and test the redaction path."}

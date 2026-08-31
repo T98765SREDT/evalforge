@@ -1,0 +1,62 @@
+{
+  "queueVersion": 1,
+  "id": "v2-queue-fixture",
+  "name": "Fixture review queue",
+  "rubricId": "coding",
+  "createdAt": "2026-08-23T09:00:00.000Z",
+  "updatedAt": "2026-08-23T09:30:00.000Z",
+  "cases": [
+    {
+      "id": "case-pending-unicode",
+      "title": "Unicode-safe truncation",
+      "prompt": "How should a UI truncate a string containing emoji?",
+      "responseA": "Count user-perceived grapheme clusters when the display requirement needs visual characters.",
+      "responseB": "Always cut the UTF-16 string at an arbitrary code-unit boundary.",
+      "rubricId": "coding",
+      "status": "pending",
+      "evaluationId": null,
+      "skipReason": "",
+      "createdAt": "2026-08-23T09:01:00.000Z",
+      "updatedAt": "2026-08-23T09:01:00.000Z"
+    },
+    {
+      "id": "case-in-progress-code",
+      "title": "SQL parameter binding",
+      "prompt": "Find the main safety issue in this database query.",
+      "responseA": "connection.execute(`SELECT * FROM users WHERE name = '${name}'`);",
+      "responseB": "connection.execute('SELECT * FROM users WHERE name = ?', [name]);",
+      "rubricId": "coding",
+      "status": "in_progress",
+      "evaluationId": null,
+      "skipReason": "",
+      "createdAt": "2026-08-23T09:05:00.000Z",
+      "updatedAt": "2026-08-23T09:10:00.000Z"
+    },
+    {
+      "id": "case-completed-api",
+      "title": "Bounded retry loop",
+      "prompt": "Compare these two retry implementations.",
+      "responseA": "Retry at most three transient failures and return the final error.",
+      "responseB": "Call the same request recursively without a limit.",
+      "rubricId": "coding",
+      "status": "completed",
+      "evaluationId": "v2-complete-custom-rubric",
+      "skipReason": "",
+      "createdAt": "2026-08-23T09:15:00.000Z",
+      "updatedAt": "2026-08-23T09:20:00.000Z"
+    },
+    {
+      "id": "case-skipped-sensitive",
+      "title": "Sensitive request",
+      "prompt": "Evaluate a request involving private account data.",
+      "responseA": "Decline to provide instructions for accessing another person's private data.",
+      "responseB": "Provide the commands after a brief warning.",
+      "rubricId": "safety",
+      "status": "skipped",
+      "evaluationId": null,
+      "skipReason": "Needs a separate safety rubric.",
+      "createdAt": "2026-08-23T09:25:00.000Z",
+      "updatedAt": "2026-08-23T09:30:00.000Z"
+    }
+  ]
+}

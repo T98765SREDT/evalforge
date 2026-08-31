@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evalforge.local/schemas/audit-bundle-v1.schema.json",
+  "title": "EvalForge audit bundle v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bundleVersion", "generatedAt", "includeSamples", "workspace", "rubrics", "datasets", "cases", "sessions", "assignments", "reviews", "auditEvents", "derived"],
+  "properties": {
+    "bundleVersion": { "const": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "includeSamples": { "type": "boolean" },
+    "workspace": { "type": "object" },
+    "rubrics": { "type": "array" },
+    "datasets": { "type": "array" },
+    "cases": { "type": "array" },
+    "sessions": { "type": "array" },
+    "assignments": { "type": "array" },
+    "reviews": { "type": "array" },
+    "auditEvents": { "type": "array" },
+    "derived": { "type": "object" }
+  }
+}

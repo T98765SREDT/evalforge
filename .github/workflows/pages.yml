@@ -15,7 +15,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify:
+    name: Verify before deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check JavaScript syntax
+        run: |
+          find js cli scripts -type f \( -name '*.js' -o -name '*.mjs' \) -print0 | xargs -0 -n1 node --check
+          node --check server.mjs
+      - name: Run tests
+        run: npm test
+
   build:
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - name: Check out source

@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: evalforge-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Node test suite
@@ -20,13 +27,47 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - name: Check JavaScript syntax
         run: |
-          node --check js/app.js
-          node --check js/data.js
-          node --check js/export.js
-          node --check js/import.js
-          node --check js/model.js
-          node --check js/scoring.js
-          node --check js/storage.js
+          find js cli scripts -type f \( -name '*.js' -o -name '*.mjs' \) -print0 | xargs -0 -n1 node --check
           node --check server.mjs
       - name: Run tests
         run: npm test
+
+  browser:
+    name: Browser E2E (${{ matrix.browser }})
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser test dependency
+        run: npm ci --no-audit --no-fund
+      - name: Install ${{ matrix.browser }}
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Start EvalForge
+        run: |
+          node server.mjs > "$RUNNER_TEMP/evalforge-e2e.log" 2>&1 &
+          server_pid=$!
+          server_ready=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/index.html > /dev/null; then
+              server_ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$server_ready" != true ]]; then
+            cat "$RUNNER_TEMP/evalforge-e2e.log"
+            kill "$server_pid" 2>/dev/null || true
+            exit 1
+          fi
+      - name: Run browser workflow checks
+        env:
+          EVALFORGE_BROWSER: ${{ matrix.browser }}
+        run: npm run test:browser

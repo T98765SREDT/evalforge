@@ -1,0 +1,31 @@
+{
+  "benchmark": "evalforge-local-v3",
+  "capturedAt": "2026-08-29",
+  "environment": {
+    "node": "v24.15.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "adapter": "MemoryRepository (IndexedDB is browser-only)"
+  },
+  "input": {
+    "cases": 1000,
+    "candidates": 2000,
+    "completedReviews": 1000,
+    "repetitions": 3,
+    "auditBundleBytes": 3292537,
+    "sourceHash": "1b4d9fa5",
+    "contentHash": "fnv1a-8e6fdcd4"
+  },
+  "operations": [
+    { "name": "importPlanning", "medianMs": 3.48, "p95Ms": 5.112 },
+    { "name": "memoryTransactionApply", "medianMs": 42.352, "p95Ms": 43.619 },
+    { "name": "sessionCreation", "medianMs": 1.516, "p95Ms": 2.099 },
+    { "name": "analytics", "medianMs": 3.408, "p95Ms": 8.648 },
+    { "name": "auditExport", "medianMs": 22.722, "p95Ms": 23.881 }
+  ],
+  "notes": [
+    "This is a local process baseline captured with the repository benchmark.",
+    "It is not a production SLA and should be regenerated after meaningful changes.",
+    "Compare runs only when size, repetitions, and environment are documented."
+  ]
+}

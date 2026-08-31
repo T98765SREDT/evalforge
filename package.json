@@ -4,9 +4,31 @@
   "private": true,
   "type": "module",
   "description": "Browser-based AI response comparison and evaluation tool",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/T98765SREDT/evalforge.git"
+  },
+  "homepage": "https://t98765sredt.github.io/evalforge/",
+  "bugs": {
+    "url": "https://github.com/T98765SREDT/evalforge/issues"
+  },
+  "keywords": [
+    "ai-evaluation",
+    "llm-evaluation",
+    "pairwise-comparison",
+    "human-feedback",
+    "local-first"
+  ],
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "test:browser": "playwright test tests/e2e/evalforge.spec.mjs",
+    "evalforge": "node cli/evalforge.mjs",
+    "benchmark": "node scripts/benchmark.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.0"
   },
   "engines": {
     "node": ">=18"

@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": "2026-08-28T09:00:00.000Z",
+  "evaluationCount": 3,
+  "evaluations": [
+    {
+      "recordVersion": 2,
+      "id": "v2-complete-custom-rubric",
+      "isSample": false,
+      "rubricId": "custom-reliability",
+      "title": "Retry policy review",
+      "createdAt": "2026-08-20T09:30:00.000Z",
+      "updatedAt": "2026-08-20T09:48:00.000Z",
+      "status": "complete",
+      "prompt": "Review this retry policy for a small API client.",
+      "responseA": "The client retries transient failures with a bounded delay and stops after the configured attempt count.",
+      "responseB": "The client retries forever until the request succeeds.",
+      "ratings": {
+        "A": { "accuracy": 5, "relevance": 5, "clarity": 4, "completeness": 4, "safety": 5 },
+        "B": { "accuracy": 2, "relevance": 3, "clarity": 3, "completeness": 1, "safety": 3 }
+      },
+      "scores": {
+        "A": { "score": 94, "completion": 100, "isComplete": true },
+        "B": { "score": 48, "completion": 100, "isComplete": true }
+      },
+      "winner": "A",
+      "confidence": 92,
+      "tags": ["JavaScript", "Reliability"],
+      "notes": "Response A bounds retries and explains why an unbounded retry loop can keep a service busy.",
+      "rubricSnapshot": {
+        "rubricId": "custom-reliability",
+        "rubricName": "Reliability review",
+        "rubricVersion": "0.3.0",
+        "tieThreshold": 3,
+        "weights": { "accuracy": 35, "relevance": 20, "clarity": 15, "completeness": 20, "safety": 10 },
+        "dimensions": [
+          { "id": "accuracy", "label": "Accuracy", "weight": 35 },
+          { "id": "relevance", "label": "Relevance", "weight": 20 },
+          { "id": "clarity", "label": "Clarity", "weight": 15 },
+          { "id": "completeness", "label": "Completeness", "weight": 20 },
+          { "id": "safety", "label": "Safety", "weight": 10 }
+        ],
+        "contributions": {
+          "A": { "accuracy": 35, "relevance": 20, "clarity": 12, "completeness": 16, "safety": 10 },
+          "B": { "accuracy": 14, "relevance": 12, "clarity": 9, "completeness": 4, "safety": 6 }
+        }
+      }
+    },
+    {
+      "recordVersion": 2,
+      "id": "v2-draft-unicode-code",
+      "isSample": false,
+      "rubricId": "coding",
+      "title": "Unicode parser draft",
+      "createdAt": "2026-08-21T10:00:00.000Z",
+      "updatedAt": "2026-08-21T10:02:00.000Z",
+      "status": "draft",
+      "prompt": "解释一个能正确处理 emoji 和组合字符的字符串切片器。",
+      "responseA": "const slice = value => Array.from(value).slice(0, 2).join('');",
+      "responseB": "const slice = value => value.substring(0, 2);",
+      "ratings": { "A": { "correctness": 4 }, "B": { "correctness": 2 } },
+      "scores": { "A": { "score": 28, "completion": 35, "isComplete": false }, "B": { "score": 14, "completion": 35, "isComplete": false } },
+      "winner": "pending",
+      "confidence": 70,
+      "tags": ["Unicode", "JavaScript"],
+      "notes": ""
+    },
+    {
+      "recordVersion": 2,
+      "id": "v2-sample-safety",
+      "isSample": true,
+      "rubricId": "safety",
+      "title": "Sample account safety review",
+      "createdAt": "2026-08-18T11:00:00.000Z",
+      "updatedAt": "2026-08-18T11:12:00.000Z",
+      "status": "complete",
+      "prompt": "What should a team do after a shared password appears in a public document?",
+      "responseA": "Rotate the credential, revoke sessions, review access, and enable named accounts with MFA.",
+      "responseB": "Change it later and remind people not to share it.",
+      "ratings": { "A": { "accuracy": 5, "relevance": 5, "clarity": 5, "completeness": 5, "safety": 5 }, "B": { "accuracy": 2, "relevance": 3, "clarity": 4, "completeness": 1, "safety": 2 } },
+      "scores": { "A": { "score": 100, "completion": 100, "isComplete": true }, "B": { "score": 47, "completion": 100, "isComplete": true } },
+      "winner": "A",
+      "confidence": 96,
+      "tags": ["Safety", "Sample"],
+      "notes": "Sample-only record for a first-use walkthrough."
+    }
+  ]
+}

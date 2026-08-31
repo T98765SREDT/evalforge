@@ -1,0 +1,22 @@
+{
+  "evaluations": [
+    {
+      "recordVersion": 2,
+      "id": "v2-storage-review",
+      "isSample": false,
+      "rubricId": "general",
+      "title": "Stored review",
+      "createdAt": "2026-08-22T08:00:00.000Z",
+      "updatedAt": "2026-08-22T08:15:00.000Z",
+      "status": "complete",
+      "prompt": "Compare two concise explanations of caching.",
+      "responseA": "A cache stores reusable results and needs an invalidation policy.",
+      "responseB": "A cache makes every request permanently faster.",
+      "ratings": { "A": { "accuracy": 5, "relevance": 4, "clarity": 4, "completeness": 4, "safety": 5 }, "B": { "accuracy": 2, "relevance": 3, "clarity": 3, "completeness": 2, "safety": 5 } },
+      "winner": "A",
+      "confidence": 88,
+      "tags": ["Caching"],
+      "notes": "The first explanation mentions invalidation, which is essential to using a cache safely."
+    }
+  ]
+}

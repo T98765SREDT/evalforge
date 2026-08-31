@@ -36,6 +36,15 @@
             Library
             <span id="nav-count" class="nav-count">0</span>
           </a>
+          <a class="nav-item" href="#dataset-library">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5 12 2l8 3.5v13L12 22l-8-3.5zm8 1.8L7 5.2 5.7 5.8l6.3 2.7 6.3-2.7-1.3-.6zm-6 2.5v7.7l5 2.2v-7.7zm7 2.2v7.7l5-2.2V9.8z" /></svg>
+            Datasets
+            <span id="dataset-nav-count" class="nav-count">0</span>
+          </a>
+          <a class="nav-item" href="#analytics">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16v2H4zm1-3h3V8H5zm5 0h3V4h-3zm5 0h3v-7h-3z" /></svg>
+            Analytics
+          </a>
           <button class="nav-item" id="open-methodology" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20m1 15h-2v-6h2zm0-8h-2V7h2z" /></svg>
             Methodology
@@ -70,7 +79,7 @@
           <div class="topbar-actions">
             <button class="button ghost compact" id="import-json" type="button">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21h2V11l3.5 3.5 1.4-1.4L12 7.2l-5.9 5.9 1.4 1.4L11 11zM5 3h14v2H5z" /></svg>
-              Import
+              Restore JSON
             </button>
             <button class="button ghost compact" id="export-json" type="button">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10l3.5-3.5 1.4 1.4-5.9 5.9-5.9-5.9 1.4-1.4L11 13zM5 19h14v2H5z" /></svg>
@@ -80,7 +89,8 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" /></svg>
               New evaluation
             </button>
-            <input class="sr-only" id="import-file" type="file" accept="application/json,.json" />
+            <input class="sr-only" id="import-file" type="file" accept="application/json,.json" aria-label="Choose an EvalForge JSON backup" />
+            <input class="sr-only" id="dataset-file" type="file" accept=".csv,.json,.jsonl,.ndjson,text/csv,application/json,application/x-ndjson" aria-label="Choose a response-pair dataset" />
           </div>
         </header>
 
@@ -102,6 +112,26 @@
                 <small>dimensions</small>
               </div>
               <p><strong>Weighted rubric</strong><br />Consistent · explainable · exportable</p>
+            </div>
+          </section>
+
+          <section id="onboarding-panel" class="onboarding-panel" aria-labelledby="onboarding-title">
+            <div class="onboarding-copy">
+              <span class="section-kicker">Start here</span>
+              <h2 id="onboarding-title">Start with one response pair</h2>
+              <p id="onboarding-description">EvalForge runs locally in this browser. Import a response-pair file, load the demo, or create one case to see the review workflow.</p>
+              <div class="onboarding-trust"><span aria-hidden="true">✓</span> Your prompt and responses stay in this browser until you export them.</div>
+            </div>
+            <div class="onboarding-actions">
+              <button id="onboarding-import" class="button primary" type="button">Import response pairs</button>
+              <button id="onboarding-load-demo" class="button ghost" type="button">Load demo dataset</button>
+              <button id="onboarding-create" class="button ghost" type="button">Create one case</button>
+              <div class="template-actions" aria-label="Download response-pair templates">
+                <span>Need a template?</span>
+                <button id="download-template-csv" class="text-button" type="button">CSV</button>
+                <button id="download-template-jsonl" class="text-button" type="button">JSONL</button>
+              </div>
+              <button id="onboarding-reset-demo" class="button danger compact" type="button" hidden>Reset demo data</button>
             </div>
           </section>
 
@@ -139,6 +169,23 @@
                 <button class="icon-button" id="clear-form" type="button" aria-label="Clear current evaluation" title="Clear evaluation">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6V4h10v2h3v2h-1l-1 13H6L5 8H4V6zm1 2 .8 11h6.4L16 8zm2 2h2v7h-2zm3 0h2v7h-2z" /></svg>
                 </button>
+              </div>
+            </div>
+
+            <div id="review-session-header" class="review-session-header" aria-label="Review session status">
+              <div class="session-header-context">
+                <span class="section-kicker">Review workstation</span>
+                <strong id="session-name">Single evaluation</strong>
+                <small id="session-state-label">Ready to review</small>
+              </div>
+              <div class="session-header-progress">
+                <div class="session-progress-copy"><span id="session-position">No assignments</span><span id="session-progress-label">0% complete</span></div>
+                <div class="session-progress-track" role="progressbar" aria-label="Review session progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="session-progress-fill"></i></div>
+              </div>
+              <div class="session-header-status">
+                <span id="session-blind-indicator" class="session-chip">Standard review</span>
+                <span id="workstation-save-state" class="session-save-state neutral"><i></i><span>Ready</span></span>
+                <button id="complete-session" class="text-button" type="button" hidden>Complete session</button>
               </div>
             </div>
 
@@ -250,9 +297,11 @@
 
               <div class="form-actions">
                 <div>
+                  <button id="previous-case" class="button ghost compact" type="button" disabled>Previous</button>
+                  <button id="skip-current-case" class="button ghost compact" type="button" disabled>Skip</button>
                   <button id="queue-case" class="button ghost" type="button">Add to batch queue</button>
                   <button id="save-draft" class="button ghost" type="button" aria-keyshortcuts="Control+S Meta+S">Save as draft</button>
-                  <span class="form-helper">Stored only after a successful local save</span>
+                  <span class="form-helper">Autosaves drafts · 1–5 rates focused rows · ⌘/Ctrl+Enter completes</span>
                 </div>
                 <button class="button primary large" type="submit">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.2 16.6-4.3-4.3 1.4-1.4 2.9 2.9 8.5-8.5 1.4 1.4z" /></svg>
@@ -277,6 +326,21 @@
             <div id="queue-list" class="queue-list" aria-live="polite"></div>
           </section>
 
+          <section id="dataset-library" class="dataset-section" aria-labelledby="dataset-library-title">
+            <div class="section-header dataset-header">
+              <div>
+                <span class="section-kicker">Reusable inputs</span>
+                <h2 id="dataset-library-title">Dataset library</h2>
+                <p>Keep imported response pairs organized before you review them.</p>
+              </div>
+              <div class="dataset-actions">
+                <span id="dataset-count" class="dataset-count">0 datasets · 0 cases</span>
+                <button id="dataset-import-open" class="button primary compact" type="button">Import dataset</button>
+              </div>
+            </div>
+            <div id="dataset-list" class="dataset-list" aria-live="polite"></div>
+          </section>
+
           <section id="library" class="library-section" aria-labelledby="library-title">
             <div class="section-header library-header">
               <div>
@@ -292,6 +356,8 @@
                 </label>
                 <select id="history-filter" aria-label="Filter evaluation status">
                   <option value="all">All statuses</option>
+                  <option value="user">Your evaluations</option>
+                  <option value="sample">Demo samples</option>
                   <option value="complete">Complete</option>
                   <option value="draft">Draft</option>
                 </select>
@@ -301,29 +367,143 @@
             <div id="history-list" class="history-list" aria-live="polite"></div>
           </section>
 
+          <section id="analytics" class="analytics-section" aria-labelledby="analytics-title">
+            <div class="section-header analytics-header">
+              <div>
+                <span class="section-kicker">Decision support</span>
+                <h2 id="analytics-title">Evaluation analytics</h2>
+                <p>Use the saved evidence to spot workflow friction, disagreement, and rubric blind spots.</p>
+              </div>
+              <div class="analytics-header-meta">
+                <span id="analytics-review-count" class="analytics-review-count">0 completed reviews · 0 active cases</span>
+                <span id="analytics-data-source" class="analytics-data-source" data-source="legacy">Legacy browser records</span>
+              </div>
+            </div>
+            <div class="analytics-filters" aria-label="Analytics filters">
+              <label class="analytics-filter-field"><span>Dataset</span><select id="analytics-dataset-filter"><option value="all">All</option></select></label>
+              <label class="analytics-filter-field"><span>Rubric</span><select id="analytics-rubric-filter"><option value="all">All</option></select></label>
+              <label class="analytics-filter-field"><span>Tag</span><select id="analytics-tag-filter"><option value="all">All</option></select></label>
+              <label class="analytics-filter-field"><span>Reviewer</span><select id="analytics-reviewer-filter"><option value="all">All</option></select></label>
+              <label class="analytics-filter-field"><span>From</span><input id="analytics-date-from" type="date" /></label>
+              <label class="analytics-filter-field"><span>To</span><input id="analytics-date-to" type="date" /></label>
+              <label class="analytics-sample-toggle"><input id="analytics-include-samples" type="checkbox" /><span>Include demo samples</span></label>
+            </div>
+            <div class="analytics-metric-grid" aria-label="Workflow analytics">
+              <article class="analytics-metric"><span>Completion rate</span><strong id="analytics-completion">—</strong><small id="analytics-completion-denominator">No eligible records</small></article>
+              <article class="analytics-metric"><span>Skip rate</span><strong id="analytics-skip">—</strong><small id="analytics-skip-denominator">No eligible records</small></article>
+              <article class="analytics-metric"><span>Tie rate</span><strong id="analytics-tie">—</strong><small id="analytics-tie-denominator">No eligible records</small></article>
+              <article class="analytics-metric"><span>Human / score conflict</span><strong id="analytics-conflict">—</strong><small id="analytics-conflict-denominator">No eligible records</small></article>
+              <article class="analytics-metric"><span>Low confidence</span><strong id="analytics-low-confidence">—</strong><small id="analytics-low-confidence-denominator">No eligible records</small></article>
+            </div>
+            <div class="analytics-panels">
+              <section class="analytics-panel" aria-labelledby="analytics-dimensions-title">
+                <div class="analytics-panel-header"><div><span class="section-kicker">Evidence by rubric dimension</span><h3 id="analytics-dimensions-title">Dimension averages</h3></div><small>1–5 scale · count shown</small></div>
+                <div id="analytics-dimensions" class="analytics-list"></div>
+              </section>
+              <section class="analytics-panel" aria-labelledby="analytics-gap-title">
+                <div class="analytics-panel-header"><div><span class="section-kicker">Separation between responses</span><h3 id="analytics-gap-title">Score-gap distribution</h3></div><small id="analytics-gap-summary">No completed score pairs yet.</small></div>
+                <div id="analytics-gap-buckets" class="analytics-bars"></div>
+              </section>
+              <section class="analytics-panel" aria-labelledby="analytics-source-title">
+                <div class="analytics-panel-header"><div><span class="section-kicker">Reveal-only metric</span><h3 id="analytics-source-title">Source win rate</h3></div><small>Human preference by source</small></div>
+                <div id="analytics-source" class="analytics-list"></div>
+              </section>
+              <section class="analytics-panel" aria-labelledby="analytics-calibration-title">
+                <div class="analytics-panel-header"><div><span class="section-kicker">Repeat checks</span><h3 id="analytics-calibration-title">Calibration consistency</h3></div><small>Only completed repeats</small></div>
+                <div id="analytics-calibration" class="analytics-list"></div>
+              </section>
+            </div>
+            <ul id="analytics-limitations" class="analytics-limitations" aria-live="polite"></ul>
+          </section>
+
+          <section id="audit-exports" class="audit-section" aria-labelledby="audit-exports-title">
+            <div class="section-header audit-header">
+              <div>
+                <span class="section-kicker">Evidence layer</span>
+                <h2 id="audit-exports-title">Audit-ready exports</h2>
+                <p>Package saved reviews as a verifiable bundle or share safe aggregate analysis.</p>
+              </div>
+              <label class="audit-sample-toggle">
+                <input id="audit-include-samples" type="checkbox" />
+                <span>Include demo samples</span>
+              </label>
+            </div>
+            <div class="audit-export-card">
+              <div class="audit-export-copy">
+                <strong>Keep the evidence trail with the result</strong>
+                <p>JSON includes references, rubric checksums, and revision history. CSV contains review metadata without prompt or response text. Markdown contains aggregate metrics only.</p>
+                <small>Exports use saved browser data. Unsaved form changes are not included.</small>
+              </div>
+              <div class="audit-export-actions" aria-label="Audit export formats">
+                <button id="export-audit-json" class="button primary compact" type="button">Audit JSON</button>
+                <button id="export-analysis-csv" class="button ghost compact" type="button">Analysis CSV</button>
+                <button id="export-summary-md" class="button ghost compact" type="button">Summary Markdown</button>
+              </div>
+            </div>
+            <div class="audit-storage-status" id="v3-storage-status" data-status="idle" role="status" aria-live="polite">
+              <div>
+                <span class="section-kicker">Optional integrity check</span>
+                <strong id="v3-storage-label">Local v3 workspace not checked</strong>
+                <p id="v3-storage-detail">Check the migrated IndexedDB workspace without changing your existing browser data.</p>
+              </div>
+              <div class="audit-storage-actions">
+                <label class="audit-v3-toggle"><input id="use-v3-workspace" type="checkbox" disabled /><span>Use verified v3 data for analytics and exports</span></label>
+                <button id="bootstrap-v3-workspace" class="button primary compact" type="button">Initialize v3 workspace</button>
+                <button id="check-v3-workspace" class="button ghost compact" type="button">Check local storage</button>
+              </div>
+            </div>
+            <section id="v3-review-panel" class="v3-review-panel" aria-labelledby="v3-review-title" hidden>
+              <div class="v3-review-header">
+                <div>
+                  <span class="section-kicker">Verified v3 workflow</span>
+                  <h3 id="v3-review-title">Start a blind review session</h3>
+                  <p>Choose a local dataset, then review response pairs without exposing source or model metadata.</p>
+                </div>
+                <span class="v3-privacy-note"><i></i> Candidate identity hidden</span>
+              </div>
+              <div class="v3-session-controls">
+                <label class="field"><span>Dataset</span><select id="v3-dataset-select" aria-label="Choose a v3 review dataset"></select></label>
+                <label class="field"><span>Reviewer ID</span><input id="v3-reviewer-id" type="text" maxlength="160" value="local-reviewer" /></label>
+                <label class="field"><span>Session seed</span><input id="v3-session-seed" type="text" maxlength="500" placeholder="e.g. review-2026-08-29" /></label>
+                <button id="v3-create-session" class="button primary compact" type="button">Create blind session</button>
+              </div>
+              <p id="v3-session-status" class="v3-session-status" role="status" aria-live="polite">No v3 session yet.</p>
+              <div id="v3-assignment-view" class="v3-assignment-view" aria-live="polite">
+                <div class="v3-empty-state"><strong>Ready when you are</strong><span>The session will keep candidate order stable while hiding source and model metadata.</span></div>
+              </div>
+              <div class="v3-assignment-actions">
+                <button id="v3-previous-assignment" class="button ghost compact" type="button" disabled>Previous</button>
+                <button id="v3-start-assignment" class="button primary compact" type="button" hidden>Start assignment</button>
+                <button id="v3-next-assignment" class="button ghost compact" type="button" disabled>Next</button>
+                <button id="v3-complete-session" class="button primary compact" type="button" hidden disabled>Complete session</button>
+                <button id="v3-reveal-session" class="button ghost compact" type="button" hidden>Reveal metadata</button>
+              </div>
+            </section>
+          </section>
+
           <footer class="site-footer">
             <div class="brand mini"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M7 6.5h18v5H12v3h10v4H12v3h13v5H7z" /></svg></span><span>EvalForge</span></div>
             <p>Transparent AI evaluation with local, auditable records.</p>
-            <span class="footer-evidence"><a href="https://github.com/T98765SREDT/evalforge">Source</a> · 40 tests · v1.1.0 · Local-first</span>
+            <span class="footer-evidence"><a href="https://github.com/T98765SREDT/evalforge">Source</a> · 156 tests · v1.1.0 · Local-first</span>
           </footer>
         </div>
       </main>
     </div>
 
-    <dialog id="methodology-dialog" class="methodology-dialog">
+    <dialog id="methodology-dialog" class="methodology-dialog" aria-labelledby="methodology-title" aria-describedby="methodology-description">
       <div class="dialog-header">
-        <div><span class="eyebrow accent">How scoring works</span><h2>Evaluation methodology</h2></div>
+        <div><span class="eyebrow accent">How scoring works</span><h2 id="methodology-title">Evaluation methodology</h2></div>
         <button id="close-methodology" class="icon-button" type="button" aria-label="Close methodology"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z" /></svg></button>
       </div>
-      <p>EvalForge converts 1–5 ratings into a 100-point weighted score. Unrated dimensions contribute zero and remain visibly incomplete, preventing partial reviews from appearing final.</p>
+      <p id="methodology-description">EvalForge converts 1–5 ratings into a 100-point weighted score. Unrated dimensions contribute zero and remain visibly incomplete, preventing partial reviews from appearing final.</p>
       <div id="methodology-list" class="methodology-list"></div>
       <div class="formula-card"><span>Weighted score</span><code>Σ (rating ÷ 5 × dimension weight)</code><small>A result within two points is treated as a tie.</small></div>
       <button id="dialog-done" class="button primary" type="button">Got it</button>
     </dialog>
 
-    <dialog id="import-dialog" class="methodology-dialog import-dialog">
+    <dialog id="import-dialog" class="methodology-dialog import-dialog" aria-labelledby="import-title" aria-describedby="import-detail">
       <div class="dialog-header">
-        <div><span class="eyebrow accent">Restore local data</span><h2>Preview JSON import</h2></div>
+        <div><span class="eyebrow accent">Restore local data</span><h2 id="import-title">Preview JSON import</h2></div>
         <button id="close-import" class="icon-button" type="button" aria-label="Close import preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z" /></svg></button>
       </div>
       <div class="import-file-card">
@@ -343,6 +523,37 @@
       <div class="dialog-actions">
         <button id="cancel-import" class="button ghost" type="button">Cancel</button>
         <button id="apply-import" class="button primary" type="button" disabled>Restore evaluations</button>
+      </div>
+    </dialog>
+
+    <dialog id="dataset-import-dialog" class="methodology-dialog dataset-import-dialog" aria-labelledby="dataset-import-title">
+      <div class="dialog-header">
+        <div><span class="eyebrow accent">Dataset library</span><h2 id="dataset-import-title">Import response pairs</h2></div>
+        <button id="close-dataset-import" class="icon-button" type="button" aria-label="Close dataset import"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6 5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z" /></svg></button>
+      </div>
+      <div class="import-file-card dataset-import-card">
+        <span>Selected dataset</span>
+        <strong id="dataset-import-filename">—</strong>
+        <b id="dataset-import-summary">Choose a response-pair dataset to preview.</b>
+        <small id="dataset-import-state">idle</small>
+        <p id="dataset-import-detail" aria-live="polite">Preview only: no local data has changed.</p>
+      </div>
+      <div class="dataset-import-fields">
+        <label class="field">
+          <span>Dataset name <b aria-hidden="true">*</b></span>
+          <input id="dataset-name" type="text" maxlength="200" placeholder="e.g. Support response comparisons" />
+        </label>
+        <label class="field">
+          <span>Description <small>optional</small></span>
+          <textarea id="dataset-description" rows="2" maxlength="2000" placeholder="What is this dataset for?"></textarea>
+        </label>
+      </div>
+      <div id="dataset-import-issues" class="dataset-import-issues" aria-live="polite"></div>
+      <div class="dataset-dialog-actions dialog-actions">
+        <button id="download-rejected-rows" class="text-button" type="button" hidden>Download rejected rows</button>
+        <span></span>
+        <button id="cancel-dataset-import" class="button ghost" type="button">Cancel</button>
+        <button id="apply-dataset-import" class="button primary" type="button" disabled>Apply dataset</button>
       </div>
     </dialog>
 
@@ -372,6 +583,25 @@
       <div class="dialog-actions">
         <button id="cancel-confirm" class="button ghost" type="button">Cancel</button>
         <button id="accept-confirm" class="button danger" type="button">Confirm</button>
+      </div>
+    </dialog>
+
+    <dialog id="skip-dialog" class="methodology-dialog confirm-dialog" aria-labelledby="skip-title" aria-describedby="skip-message">
+      <div class="dialog-header">
+        <div><span class="eyebrow accent">Queue workflow</span><h2 id="skip-title">Skip this assignment?</h2></div>
+        <button id="close-skip" class="icon-button" type="button" aria-label="Cancel skip">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6 5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z" /></svg>
+        </button>
+      </div>
+      <p id="skip-message">This case stays in the queue history. Add a short reason so the decision can be audited.</p>
+      <label class="field">
+        <span>Reason <b aria-hidden="true">*</b></span>
+        <textarea id="skip-reason" rows="3" maxlength="2000" placeholder="e.g. Needs a safety-specific rubric before review."></textarea>
+        <small id="skip-error" class="field-hint" hidden>Enter a reason before skipping.</small>
+      </label>
+      <div class="dialog-actions">
+        <button id="cancel-skip" class="button ghost" type="button">Keep assignment</button>
+        <button id="accept-skip" class="button danger" type="button">Skip assignment</button>
       </div>
     </dialog>
 

@@ -4,7 +4,8 @@ import {
   CURRENT_SCHEMA_VERSION,
   createBlankEvaluation,
   normalizeEvaluation,
-  normalizeEvaluationCollection
+  normalizeEvaluationCollection,
+  normalizeRubricSnapshot
 } from "../js/model.js";
 
 const completeRatings = {
@@ -108,4 +109,63 @@ test("a selected rubric is carried into the record and uses its dimensions", () 
   assert.equal(normalized.rubricId, "coding");
   assert.equal(normalized.rubricSnapshot.rubricId, "coding");
   assert.equal(normalized.rubricSnapshot.weights.correctness, 35);
+});
+
+test("a persisted custom rubric remains the scoring source after preset changes", () => {
+  const customSnapshot = {
+    rubricId: "custom-support",
+    rubricName: "Support quality",
+    rubricVersion: "2.4.0",
+    scoringAlgorithmVersion: "weighted-ratings-v1",
+    tieThreshold: 25,
+    weights: { support: 100 },
+    dimensions: [{ id: "support", label: "Support", description: "Evidence and practical help.", weight: 100 }]
+  };
+  const normalized = normalizeEvaluation({
+    id: "custom-history",
+    rubricId: "general",
+    rubricSnapshot: customSnapshot,
+    prompt: "Compare two support answers.",
+    responseA: "A provides evidence.",
+    responseB: "B provides less evidence.",
+    ratings: { A: { support: 5 }, B: { support: 4 } },
+    notes: "The first response explains the decision and gives a useful next step.",
+    status: "complete"
+  });
+  assert.equal(normalized.rubricId, "custom-support");
+  assert.equal(normalized.rubricSnapshot.rubricVersion, "2.4.0");
+  assert.equal(normalized.rubricSnapshot.weights.support, 100);
+  assert.equal(normalized.scores.A.score, 100);
+  assert.equal(normalized.scores.B.score, 80);
+  assert.equal(normalized.winner, "tie");
+  assert.equal(normalized.rubricSnapshot.auditStatus, "verified");
+});
+
+test("invalid snapshots fall back with an explicit repair reason", () => {
+  const normalized = normalizeEvaluation({
+    id: "broken-history",
+    rubricId: "coding",
+    rubricSnapshot: { dimensions: [], tieThreshold: "unknown" },
+    prompt: "Prompt",
+    responseA: "A",
+    responseB: "B",
+    ratings: { A: { correctness: 5 }, B: { correctness: 5 } },
+    notes: "This record is intentionally incomplete for recovery testing."
+  });
+  assert.equal(normalized.rubricSnapshot.auditStatus, "fallback");
+  assert.equal(normalized.rubricSnapshot.repairReason, "missing-rubric-dimensions");
+  assert.equal(normalized.rubricId, "coding");
+});
+
+test("snapshot normalization reports legacy algorithm metadata as limited", () => {
+  const result = normalizeRubricSnapshot({
+    rubricId: "legacy-custom",
+    rubricVersion: "0.9.0",
+    tieThreshold: 1,
+    dimensions: [{ id: "quality", label: "Quality", weight: 100 }]
+  }, undefined, { A: { quality: 4 }, B: { quality: 4 } });
+  assert.equal(result.repaired, true);
+  assert.equal(result.repairReason, "missing-scoring-algorithm-version");
+  assert.equal(result.snapshot.auditStatus, "limited");
+  assert.equal(result.snapshot.weights.quality, 100);
 });

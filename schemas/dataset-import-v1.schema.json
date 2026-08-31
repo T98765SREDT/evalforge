@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evalforge.local/schemas/dataset-import-v1.schema.json",
+  "title": "EvalForge response-pair dataset import v1",
+  "type": "object",
+  "required": ["external_id", "prompt", "response_1", "response_2"],
+  "properties": {
+    "external_id": { "type": "string", "minLength": 1 },
+    "prompt": { "type": "string", "minLength": 1 },
+    "response_1": { "type": "string", "minLength": 1 },
+    "response_2": { "type": "string", "minLength": 1 },
+    "model_1": { "type": "string" },
+    "model_2": { "type": "string" },
+    "model_version": { "type": "string" },
+    "prompt_version": { "type": "string" },
+    "reference_answer": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "metadata": { "type": "object" }
+  },
+  "additionalProperties": true
+}
